@@ -1,0 +1,73 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isSelf(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/players/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/players/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Players: anyone signed-in can read the roster; users own their doc; admins can flag.
+    match /players/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isSelf(uid);
+      allow update: if isSelf(uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Tournament singleton
+    match /tournament/{doc} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Rounds & matches: signed-in read, admin writes, scores can be submitted by admins.
+    match /rounds/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /matches/{id} {
+      allow read: if isSignedIn();
+      // admins can create/update freely; players can update their own mvpVotes
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mvpVotes'])
+      );
+    }
+
+    // Memory wall: signed-in users create/read. Only author or admin can delete.
+    match /memories/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      // Reactions: allow any signed-in user to update reaction maps only
+      allow update: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy'])
+      );
+      allow delete: if isAdmin() || resource.data.authorId == request.auth.uid;
+    }
+
+    // Birthday messages: signed-in users create one or more. Only author/admin can delete.
+    match /birthdayMessages/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    // Predictions: one doc per user, keyed by uid
+    match /predictions/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSelf(uid);
+    }
+
+    // Superlatives: admin only writes; everyone reads
+    match /superlatives/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

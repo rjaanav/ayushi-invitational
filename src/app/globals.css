@@ -1,26 +1,245 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Padel court + baby pink palette */
+  --court-900: #072a36;
+  --court-800: #0b3d4e;
+  --court-700: #0f5166;
+  --court-600: #14627a;
+  --court-500: #1b7a94;
+
+  --turf-700: #1f7a4a;
+  --turf-600: #2d8f5b;
+  --turf-500: #3da668;
+  --turf-400: #6fc78d;
+  --turf-300: #a7e2ba;
+
+  --pink-500: #ff7fa3;
+  --pink-400: #ff9fb9;
+  --pink-300: #ffb6c6;
+  --pink-200: #ffc7d3;
+  --pink-100: #ffe1e9;
+
+  --cream: #fff9f5;
+  --sand: #f6ece1;
+
+  --ink: #0a1620;
+  --ink-soft: #223440;
+  --muted: #6b7a84;
+
+  --background: var(--cream);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-court-900: var(--court-900);
+  --color-court-800: var(--court-800);
+  --color-court-700: var(--court-700);
+  --color-court-600: var(--court-600);
+  --color-court-500: var(--court-500);
+
+  --color-turf-700: var(--turf-700);
+  --color-turf-600: var(--turf-600);
+  --color-turf-500: var(--turf-500);
+  --color-turf-400: var(--turf-400);
+  --color-turf-300: var(--turf-300);
+
+  --color-pink-500: var(--pink-500);
+  --color-pink-400: var(--pink-400);
+  --color-pink-300: var(--pink-300);
+  --color-pink-200: var(--pink-200);
+  --color-pink-100: var(--pink-100);
+
+  --color-cream: var(--cream);
+  --color-sand: var(--sand);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  /* Subtle pink/turf ambient glow */
+  background:
+    radial-gradient(1200px 600px at 110% -10%, rgba(255, 127, 163, 0.18), transparent 60%),
+    radial-gradient(800px 500px at -10% 110%, rgba(61, 166, 104, 0.12), transparent 60%),
+    var(--cream);
+}
+
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+/* Shared ui primitives */
+.card {
+  background: #ffffff;
+  border: 1px solid rgba(10, 22, 32, 0.06);
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgba(10, 22, 32, 0.04),
+    0 8px 24px -12px rgba(10, 22, 32, 0.12);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.75rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: transform 120ms ease, filter 120ms ease, background 120ms ease;
+  cursor: pointer;
+  user-select: none;
+}
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--court-800), var(--court-600));
+  color: #fff;
+  box-shadow: 0 10px 30px -12px rgba(11, 61, 78, 0.55);
+}
+.btn-primary:hover {
+  filter: brightness(1.07);
+}
+.btn-pink {
+  background: linear-gradient(135deg, var(--pink-500), var(--pink-300));
+  color: #2b0a1a;
+  box-shadow: 0 10px 30px -12px rgba(255, 127, 163, 0.6);
+}
+.btn-pink:hover {
+  filter: brightness(1.03);
+}
+.btn-turf {
+  background: linear-gradient(135deg, var(--turf-600), var(--turf-400));
+  color: #052015;
+  box-shadow: 0 10px 30px -12px rgba(45, 143, 91, 0.55);
+}
+.btn-ghost {
+  background: rgba(10, 22, 32, 0.04);
+  color: var(--ink);
+}
+.btn-ghost:hover {
+  background: rgba(10, 22, 32, 0.08);
+}
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.input {
+  width: 100%;
+  background: #fff;
+  border: 1px solid rgba(10, 22, 32, 0.12);
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.input:focus {
+  border-color: var(--court-600);
+  box-shadow: 0 0 0 4px rgba(20, 98, 122, 0.12);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--pink-100);
+  color: #7a1f3a;
+  border: 1px solid rgba(255, 127, 163, 0.35);
+}
+
+.chip-turf {
+  background: rgba(61, 166, 104, 0.12);
+  color: #0f5e35;
+  border-color: rgba(61, 166, 104, 0.35);
+}
+.chip-court {
+  background: rgba(20, 98, 122, 0.1);
+  color: var(--court-800);
+  border-color: rgba(20, 98, 122, 0.3);
+}
+
+/* Court pattern used as decoration */
+.court-pattern {
+  background:
+    linear-gradient(180deg, var(--court-800), var(--court-700));
+  position: relative;
+  overflow: hidden;
+}
+.court-pattern::before {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+}
+.court-pattern::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Scrollbar polish */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(10, 22, 32, 0.2);
+  border-radius: 8px;
+}
+
+/* safe area for mobile bottom nav */
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
+}
+
+/* shimmer for skeletons */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0e8dc, #faf2e8, #f0e8dc);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 0.75rem;
+}
+
+/* marquee */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee {
+  animation: marquee 28s linear infinite;
 }

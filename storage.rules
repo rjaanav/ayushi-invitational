@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() &&
+        firestore.exists(/databases/(default)/documents/players/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/players/$(request.auth.uid)).data.isAdmin == true;
+    }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*') &&
+             request.resource.size < 15 * 1024 * 1024;
+    }
+
+    match /selfies/{uid}/{path=**} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && isImage();
+    }
+
+    match /memories/{uid}/{path=**} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && isImage();
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+    }
+  }
+}
