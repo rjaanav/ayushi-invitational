@@ -31,20 +31,20 @@ export async function initTournament(params: {
   const ref = doc(db, "tournament", TOURNAMENT_ID);
   const existing = await getDoc(ref);
   if (existing.exists()) return;
-  const payload: Omit<Tournament, "id"> = {
+  // Firestore rejects `undefined`. Build the payload conditionally so optional
+  // fields are either set to a real value or omitted entirely (never undefined).
+  const payload: Record<string, unknown> = {
     name: "The Ayushi Invitational",
     courts: params.courts ?? 3,
     pointsPerMatch: params.pointsPerMatch ?? 24,
     currentRound: 0,
     totalRounds: params.totalRounds ?? 7,
     status: "setup",
-    ayushiId: params.ayushiId,
     theme: "padel+pink",
-  };
-  await setDoc(ref, {
-    ...payload,
     startsAt: params.startsAt ?? null,
-  });
+    ayushiId: params.ayushiId ?? null,
+  };
+  await setDoc(ref, payload);
 }
 
 export async function updateTournament(patch: Partial<Tournament>) {
@@ -267,6 +267,7 @@ export async function promoteAdmin(userId: string) {
 export async function setAyushi(userId: string) {
   const db = getDb();
   const tRef = doc(db, "tournament", TOURNAMENT_ID);
-  await updateDoc(tRef, { ayushiId: userId });
+  // setDoc with merge: true creates the doc if missing, otherwise patches it.
+  await setDoc(tRef, { ayushiId: userId }, { merge: true });
   await updateDoc(doc(db, "players", userId), { isAyushi: true });
 }

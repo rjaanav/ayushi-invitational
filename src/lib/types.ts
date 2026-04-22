@@ -89,12 +89,3 @@ export interface Prediction {
   mvpId?: string;
   createdAt: TimestampLike;
 }
-
-export interface Superlative {
-  id: string;
-  title: string;
-  description?: string;
-  winnerId?: string;
-  icon?: string;
-  awardedAt?: TimestampLike;
-}

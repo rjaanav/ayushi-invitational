@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
+import { MemoryCarousel } from "@/components/MemoryCarousel";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { EVENT } from "@/lib/eventConfig";
 import { usePlayers, useTournament, useRounds, useMatches } from "@/lib/firebase/db";
@@ -147,6 +148,9 @@ export default function HomePage() {
           </Link>
         )}
 
+        {/* Memories + notes carousel */}
+        <MemoryCarousel />
+
         {/* Podium preview */}
         {players.length > 0 && (
           <Link href="/leaderboard" className="card p-4 block">
@@ -206,25 +210,11 @@ export default function HomePage() {
             tone="turf"
           />
           <QuickLink
-            href="/awards"
-            icon={<Sparkles size={18} />}
-            title="Awards"
-            subtitle="Hall of fame."
-            tone="sand"
-          />
-          <QuickLink
             href="/players"
             icon={<Sparkles size={18} />}
             title="Players"
             subtitle={`${players.length}/${EVENT.maxPlayers} in`}
-            tone="pink"
-          />
-          <QuickLink
-            href="/bigscreen"
-            icon={<Trophy size={18} />}
-            title="Big Screen"
-            subtitle="Project to TV."
-            tone="court"
+            tone="sand"
           />
         </div>
       </main>

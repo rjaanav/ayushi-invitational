@@ -78,8 +78,8 @@ export default function MessagesPage() {
             Leave her a <span className="text-pink-500">note</span>.
           </h1>
           <p className="text-sm text-muted mt-1 max-w-sm">
-            Anything you&rsquo;ve wanted to say. We&rsquo;ll surface these on
-            the big screen between rounds.
+            Anything you&rsquo;ve wanted to say. She&rsquo;ll see every one on
+            the home feed.
           </p>
         </header>
 

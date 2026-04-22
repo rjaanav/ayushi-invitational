@@ -5,12 +5,9 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   doc,
-  deleteDoc,
   getDocs,
   collection,
   writeBatch,
-  setDoc,
-  updateDoc,
 } from "firebase/firestore";
 import confetti from "canvas-confetti";
 import {
@@ -306,9 +303,6 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {/* Superlatives */}
-        <SuperlativeManager />
-
         {/* Danger */}
         <section className="card p-4 bg-red-50/60">
           <p className="font-semibold text-sm text-red-700 flex items-center gap-2">
@@ -416,72 +410,3 @@ function SettingInput({
   );
 }
 
-function SuperlativeManager() {
-  const { items: players } = usePlayers();
-  const [busy, setBusy] = useState(false);
-  const [title, setTitle] = useState("");
-  const [icon, setIcon] = useState("🏆");
-  const [winnerId, setWinnerId] = useState<string>("");
-
-  async function create() {
-    if (!title.trim()) return;
-    setBusy(true);
-    try {
-      const db = getDb();
-      const id = crypto.randomUUID();
-      await setDoc(doc(db, "superlatives", id), {
-        title: title.trim(),
-        icon,
-        winnerId: winnerId || null,
-      });
-      setTitle("");
-      setWinnerId("");
-      toast.success("Superlative added ✨");
-    } catch {
-      toast.error("Couldn't save.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="card p-4 flex flex-col gap-3">
-      <p className="font-semibold text-sm flex items-center gap-2">
-        <Trophy size={16} /> Superlatives
-      </p>
-      <p className="text-xs text-muted">
-        Hand out silly awards: Shot of the Night, Biggest Chaos Agent, Most
-        Improved Rookie. Create one, pick a winner.
-      </p>
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Award title (e.g. Shot of the Night)"
-        className="input"
-      />
-      <div className="flex gap-2">
-        <input
-          value={icon}
-          onChange={(e) => setIcon(e.target.value.slice(0, 2))}
-          placeholder="🏆"
-          className="input flex-[0_0_80px] text-center text-xl"
-        />
-        <select
-          value={winnerId}
-          onChange={(e) => setWinnerId(e.target.value)}
-          className="input flex-1"
-        >
-          <option value="">Winner (optional)</option>
-          {players.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name || p.phone}
-            </option>
-          ))}
-        </select>
-      </div>
-      <button disabled={busy || !title.trim()} onClick={create} className="btn btn-pink">
-        <Sparkles size={14} /> Add award
-      </button>
-    </section>
-  );
-}

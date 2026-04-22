@@ -17,7 +17,6 @@ import type {
   Player,
   Prediction,
   Round,
-  Superlative,
   Tournament,
 } from "@/lib/types";
 import { useEffect, useState } from "react";
@@ -135,8 +134,4 @@ export function useBirthdayMessages() {
 
 export function usePredictions() {
   return useCollection<Prediction>("predictions");
-}
-
-export function useSuperlatives() {
-  return useCollection<Superlative>("superlatives");
 }
