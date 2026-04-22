@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Camera, Heart, PlusCircle } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
@@ -63,6 +63,68 @@ export function MemoryCarousel() {
 
   const hasContent = items.length > 0;
 
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const pausedUntilRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!hasContent) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+
+    // Respect users who asked for reduced motion.
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+
+    const SPEED_PX_PER_SEC = 18; // gentle ambient drift
+    const RESUME_DELAY_MS = 3500; // pause window after user interaction
+
+    let rafId = 0;
+    let lastTs = performance.now();
+
+    const pause = () => {
+      pausedUntilRef.current = performance.now() + RESUME_DELAY_MS;
+    };
+
+    const tick = (ts: number) => {
+      const dt = ts - lastTs;
+      lastTs = ts;
+      const now = performance.now();
+      const docVisible =
+        typeof document === "undefined" || !document.hidden;
+      if (
+        docVisible &&
+        now >= pausedUntilRef.current &&
+        el.scrollWidth > el.clientWidth + 1
+      ) {
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        const next = el.scrollLeft + (SPEED_PX_PER_SEC * dt) / 1000;
+        if (next >= maxScroll - 0.5) {
+          // Loop gently to the start.
+          el.scrollTo({ left: 0, behavior: "smooth" });
+          pausedUntilRef.current = now + 1200;
+        } else {
+          el.scrollLeft = next;
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+
+    el.addEventListener("pointerdown", pause, { passive: true });
+    el.addEventListener("touchstart", pause, { passive: true });
+    el.addEventListener("wheel", pause, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      el.removeEventListener("pointerdown", pause);
+      el.removeEventListener("touchstart", pause);
+      el.removeEventListener("wheel", pause);
+    };
+  }, [hasContent, items.length]);
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 8 }}
@@ -96,7 +158,8 @@ export function MemoryCarousel() {
       {/* Scroller */}
       {hasContent && (
         <div
-          className="no-scrollbar flex gap-3 overflow-x-auto pb-4 px-4 scroll-smooth snap-x snap-mandatory"
+          ref={scrollerRef}
+          className="no-scrollbar flex gap-3 overflow-x-auto pb-4 px-4 snap-x snap-proximity"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {items.map((item, idx) =>

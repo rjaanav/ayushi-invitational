@@ -148,9 +148,6 @@ export default function HomePage() {
           </Link>
         )}
 
-        {/* Memories + notes carousel */}
-        <MemoryCarousel />
-
         {/* Podium preview */}
         {players.length > 0 && (
           <Link href="/leaderboard" className="card p-4 block">
@@ -217,6 +214,9 @@ export default function HomePage() {
             tone="sand"
           />
         </div>
+
+        {/* Memories + notes carousel */}
+        <MemoryCarousel />
       </main>
 
       <BottomNav />

@@ -137,7 +137,6 @@ export default function PredictionsPage() {
         <Section
           icon={<Target className="text-court-700" size={18} />}
           title="Where does Ayushi finish?"
-          subtitle="Closest guess wins a hug 🫂"
         >
           <div className="flex items-center gap-3">
             <input
