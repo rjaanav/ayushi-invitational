@@ -117,8 +117,8 @@ export default function HomePage() {
           </Link>
         )}
 
-        {/* Your next match — admins jump into the scoring cockpit,
-            everyone else drops into the full schedule view. */}
+        {/* Your next match — admins jump into the scoring cockpit.
+            For non-admins the card is info-only. */}
         {player && myNextMatch && (
           <MatchCallout
             matchNumber={myNextMatch.court}
@@ -127,27 +127,38 @@ export default function HomePage() {
             teamA={myNextMatch.teamA}
             teamB={myNextMatch.teamB}
             players={players}
-            href={player.isAdmin ? "/admin" : "/schedule"}
+            href={player.isAdmin ? "/admin" : null}
           />
         )}
 
-        {/* Tournament status */}
+        {/* Tournament status — only admins can tap through to enter scores. */}
         {tournament?.status === "live" && currentRound && (
-          <Link
-            href={player?.isAdmin ? "/admin" : "/schedule"}
-            className="card p-4 flex items-center justify-between"
-          >
-            <div>
-              <p className="chip chip-turf">Round {currentRound.number} · LIVE</p>
-              <p className="font-display text-lg text-ink mt-2">
-                {matches.filter((m) => m.roundId === currentRound.id && m.status === "live").length} matches on court
-              </p>
-              <p className="text-xs text-muted mt-0.5">
-                {player?.isAdmin ? "Tap to enter scores." : "Tap to watch live."}
-              </p>
+          player?.isAdmin ? (
+            <Link
+              href="/admin"
+              className="card p-4 flex items-center justify-between"
+            >
+              <div>
+                <p className="chip chip-turf">Round {currentRound.number} · LIVE</p>
+                <p className="font-display text-lg text-ink mt-2">
+                  {matches.filter((m) => m.roundId === currentRound.id && m.status === "live").length} matches on court
+                </p>
+                <p className="text-xs text-muted mt-0.5">Tap to enter scores.</p>
+              </div>
+              <Trophy className="text-court-700" />
+            </Link>
+          ) : (
+            <div className="card p-4 flex items-center justify-between">
+              <div>
+                <p className="chip chip-turf">Round {currentRound.number} · LIVE</p>
+                <p className="font-display text-lg text-ink mt-2">
+                  {matches.filter((m) => m.roundId === currentRound.id && m.status === "live").length} matches on court
+                </p>
+                <p className="text-xs text-muted mt-0.5">Scores update live on the leaderboard.</p>
+              </div>
+              <Trophy className="text-court-700" />
             </div>
-            <Trophy className="text-court-700" />
-          </Link>
+          )
         )}
 
         {/* Podium preview */}
@@ -195,20 +206,6 @@ export default function HomePage() {
             tone="court"
           />
           <QuickLink
-            href="/predictions"
-            icon={<Sparkles size={18} />}
-            title="Predictions"
-            subtitle="Call it early."
-            tone="pink"
-          />
-          <QuickLink
-            href="/schedule"
-            icon={<Trophy size={18} />}
-            title="Schedule"
-            subtitle="All rounds."
-            tone="turf"
-          />
-          <QuickLink
             href="/players"
             icon={<Sparkles size={18} />}
             title="Players"
@@ -243,7 +240,7 @@ function MatchCallout({
   teamA: string[];
   teamB: string[];
   players: { id: string; name: string; photoURL?: string }[];
-  href: string;
+  href: string | null;
 }) {
   const find = (id: string) => players.find((p) => p.id === id);
   const onTeamA = teamA.includes(me);
@@ -253,11 +250,10 @@ function MatchCallout({
   const partner = partnerId ? find(partnerId) : null;
   const v1 = find(vs[0] ?? "");
   const v2 = find(vs[1] ?? "");
-  return (
-    <Link
-      href={href}
-      className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-400 to-pink-300 text-white p-5"
-    >
+  const className =
+    "relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-400 to-pink-300 text-white p-5";
+  const body = (
+    <>
       <p className="text-[11px] tracking-[0.25em] uppercase opacity-90">
         You&rsquo;re up · Round {roundNumber} · Court {matchNumber}
       </p>
@@ -275,7 +271,14 @@ function MatchCallout({
       <p className="mt-4 text-sm opacity-90">
         Partner: <strong>{partner?.name ?? "TBD"}</strong>
       </p>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={className}>
+      {body}
     </Link>
+  ) : (
+    <div className={className}>{body}</div>
   );
 }
 

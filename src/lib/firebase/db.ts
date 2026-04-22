@@ -15,7 +15,6 @@ import type {
   Match,
   Memory,
   Player,
-  Prediction,
   Round,
   Tournament,
 } from "@/lib/types";
@@ -130,8 +129,4 @@ export function useBirthdayMessages() {
   return useCollection<BirthdayMessage>("birthdayMessages", {
     constraints: [orderBy("createdAt", "desc")],
   });
-}
-
-export function usePredictions() {
-  return useCollection<Prediction>("predictions");
 }

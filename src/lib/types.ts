@@ -77,12 +77,3 @@ export interface BirthdayMessage {
   createdAt: TimestampLike;
   revealed: boolean;
 }
-
-export interface Prediction {
-  id: string; // userId
-  userId: string;
-  userName: string;
-  championId?: string; // predicted winner
-  mvpId?: string;
-  createdAt: TimestampLike;
-}

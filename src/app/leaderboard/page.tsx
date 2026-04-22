@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Crown, Trophy } from "lucide-react";
+import { Crown } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/Avatar";
@@ -127,9 +127,6 @@ export default function LeaderboardPage() {
           })}
         </div>
 
-        <Link href="/schedule" className="btn btn-primary">
-          <Trophy size={16} /> See full schedule
-        </Link>
       </main>
       <BottomNav />
     </div>

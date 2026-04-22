@@ -12,10 +12,7 @@ Built with Next.js (App Router), Firebase (Auth + Firestore + Storage), Tailwind
 - **Live leaderboard** with podium animation.
 - **Memory Wall** — anyone can post photos + captions during the night; reactions with emojis.
 - **For Ayushi** — a private feed of birthday messages from the group.
-- **Predictions** — guess the champion, MVP, Ayushi's placement before tip-off.
-- **Awards / Superlatives** — admin-created silly awards, plus auto "Most MVP votes".
-- **Big screen mode** (`/bigscreen`) — gorgeous TV/projector view with live scores, leaderboard, rotating messages and memory strip.
-- **Admin cockpit** — initialize tournament, generate each round, enter scores, promote admins, mark the birthday girl, reset, nuke.
+- **Admin cockpit** — initialize tournament, generate each round, enter scores, promote admins, reset, nuke.
 - **Confetti** — on wins and key moments.
 
 ## Quick setup
@@ -74,7 +71,7 @@ From then on you can promote others from the in-app Admin panel (`/admin`).
 1. Everyone logs in via phone, adds name + selfie, writes a birthday message.
 2. Admin goes to `/admin` → **Initialize tournament** → confirm courts (3), race-to points (24), total rounds (e.g. 7).
 3. Admin taps **Generate round 1** → **Start round** once players are on court.
-4. After each match, admin (or a trusted scorekeeper — anyone with `isAdmin`) enters scores from the **Score** tab (`/admin`). Non-admins can follow along live on `/schedule`.
+4. After each match, admin (or a trusted scorekeeper — anyone with `isAdmin`) enters scores from the **Score** tab (`/admin`). Everyone else follows the live leaderboard.
 5. Once all matches in a round are completed, admin hits **Generate next round** → algorithm produces balanced Americano pairings based on current standings.
 6. When the last round finishes, admin hits **Finish tournament** → confetti storm.
 
@@ -96,16 +93,11 @@ src/
     page.tsx                home / dashboard
     login/                  phone OTP
     onboarding/             name + selfie
-    tournament/             live matches + score entry
     leaderboard/            podium + ranked list
     memories/               photo wall
     messages/               birthday messages for Ayushi
-    predictions/            pre-tournament guesses
-    awards/                 superlatives + MVP tally
     players/                roster & profiles
-    schedule/               full schedule by round
-    admin/                  admin cockpit
-    bigscreen/              TV/projector view
+    admin/                  admin cockpit (score entry + controls)
   components/               shared UI (TopBar, BottomNav, Avatar, etc.)
   lib/
     firebase/               client, live query hooks, tournament actions
