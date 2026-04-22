@@ -28,7 +28,6 @@ export async function initTournament(params: {
   courts?: number;
   pointsPerMatch?: number;
   totalRounds?: number;
-  ayushiId?: string;
   startsAt?: Date;
 }) {
   const db = getDb();
@@ -46,7 +45,6 @@ export async function initTournament(params: {
     status: "setup",
     theme: "padel+pink",
     startsAt: params.startsAt ?? null,
-    ayushiId: params.ayushiId ?? null,
   };
   await setDoc(ref, payload);
 }
@@ -317,8 +315,8 @@ function makeSeedAvatar(name: string, hue: number): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-const SEED_PLAYERS: Array<{ name: string; funFact: string; isAyushi?: boolean }> = [
-  { name: "Ayushi Sharma", funFact: "Birthday girl. Serve her a forehand to the chest and you get uninvited.", isAyushi: true },
+const SEED_PLAYERS: Array<{ name: string; funFact: string }> = [
+  { name: "Ayushi Sharma", funFact: "Birthday girl. Serve her a forehand to the chest and you get uninvited." },
   { name: "Priya Kapoor", funFact: "Can't lose without blaming the wind." },
   { name: "Rohan Mehta", funFact: "Turns every rally into a three-act play." },
   { name: "Arjun Singh", funFact: "Foot-fault connoisseur." },
@@ -356,7 +354,6 @@ export async function seedTestPlayers() {
         name: p.name,
         photoURL: makeSeedAvatar(p.name, hue),
         funFact: p.funFact,
-        isAyushi: Boolean(p.isAyushi),
         isAdmin: false,
         isSeed: true,
         points: 0,
@@ -376,7 +373,6 @@ export async function seedTestPlayers() {
 
 /**
  * Delete every `seed-*` player doc and any matches/rounds that referenced them.
- * Also clears the tournament's `ayushiId` if it pointed at a seed player.
  */
 export async function removeTestPlayers() {
   const db = getDb();
@@ -385,15 +381,6 @@ export async function removeTestPlayers() {
   if (seeds.length === 0) return { removed: 0 };
 
   const seedIds = new Set(seeds.map((d) => d.id));
-
-  // If the tournament's ayushiId is a seed player, clear it so the admin panel
-  // doesn't end up pointing at a ghost.
-  const tRef = doc(db, "tournament", TOURNAMENT_ID);
-  const tSnap = await getDoc(tRef);
-  const clearAyushi =
-    tSnap.exists() &&
-    typeof tSnap.data().ayushiId === "string" &&
-    seedIds.has(tSnap.data().ayushiId as string);
 
   // Firestore batches are capped at 500 ops. We may have matches + rounds +
   // players in the hundreds; chunk to be safe.
@@ -434,7 +421,6 @@ export async function removeTestPlayers() {
   seeds.forEach((d) => addOp((b) => b.delete(d.ref)));
   staleMatches.forEach((d) => addOp((b) => b.delete(d.ref)));
   staleRounds.forEach((d) => addOp((b) => b.delete(d.ref)));
-  if (clearAyushi) addOp((b) => b.set(tRef, { ayushiId: null }, { merge: true }));
 
   batches.push(current);
   for (const b of batches) await b.commit();
@@ -444,23 +430,4 @@ export async function removeTestPlayers() {
     matchesRemoved: staleMatches.length,
     roundsRemoved: staleRounds.length,
   };
-}
-
-export async function setAyushi(userId: string) {
-  const db = getDb();
-  const tRef = doc(db, "tournament", TOURNAMENT_ID);
-  const tSnap = await getDoc(tRef);
-  const previousAyushiId =
-    tSnap.exists() && typeof tSnap.data().ayushiId === "string"
-      ? (tSnap.data().ayushiId as string)
-      : null;
-
-  const batch = writeBatch(db);
-  // setDoc with merge: true creates the doc if missing, otherwise patches it.
-  batch.set(tRef, { ayushiId: userId }, { merge: true });
-  if (previousAyushiId && previousAyushiId !== userId) {
-    batch.update(doc(db, "players", previousAyushiId), { isAyushi: false });
-  }
-  batch.update(doc(db, "players", userId), { isAyushi: true });
-  await batch.commit();
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
-import { Sparkles, Crown, Trophy, Target } from "lucide-react";
+import { Sparkles, Crown, Trophy } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/Avatar";
@@ -25,14 +25,12 @@ export default function PredictionsPage() {
 
   const [championId, setChampionId] = useState("");
   const [mvpId, setMvpId] = useState("");
-  const [ayushiPlacement, setAyushiPlacement] = useState<number>(1);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!myPred) return;
     setChampionId(myPred.championId ?? "");
     setMvpId(myPred.mvpId ?? "");
-    setAyushiPlacement(myPred.ayushiPlacement ?? 1);
   }, [myPred]);
 
   const locked =
@@ -48,7 +46,6 @@ export default function PredictionsPage() {
         userName: player.name,
         championId: championId || null,
         mvpId: mvpId || null,
-        ayushiPlacement,
         updatedAt: serverTimestamp(),
       };
       // Only stamp `createdAt` the first time so edits don't overwrite it.
@@ -136,30 +133,6 @@ export default function PredictionsPage() {
           </select>
         </Section>
 
-        {/* Ayushi placement */}
-        <Section
-          icon={<Target className="text-court-700" size={18} />}
-          title="Where does Ayushi finish?"
-        >
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min={1}
-              max={Math.max(2, onboarded.length)}
-              value={Math.min(ayushiPlacement, Math.max(2, onboarded.length))}
-              disabled={locked || onboarded.length < 2}
-              onChange={(e) => setAyushiPlacement(parseInt(e.target.value))}
-              className="flex-1 accent-pink-500"
-            />
-            <div className="w-16 text-center">
-              <p className="font-display text-2xl text-court-800">
-                #{ayushiPlacement}
-              </p>
-              <p className="text-[10px] uppercase text-muted">place</p>
-            </div>
-          </div>
-        </Section>
-
         {!locked && (
           <button disabled={busy || !player} onClick={save} className="btn btn-pink">
             <Sparkles size={14} /> Lock my predictions
@@ -192,9 +165,6 @@ export default function PredictionsPage() {
                       <Avatar name={champ.name} photoURL={champ.photoURL} size={20} />
                       {champ.name.split(" ")[0]}
                     </span>
-                  )}
-                  {p.ayushiPlacement && (
-                    <span className="ml-auto chip">A @ #{p.ayushiPlacement}</span>
                   )}
                 </motion.div>
               );

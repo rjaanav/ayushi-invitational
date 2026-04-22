@@ -8,26 +8,20 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Lock, Send } from "lucide-react";
+import { Heart, Send } from "lucide-react";
 import confetti from "canvas-confetti";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getDb } from "@/lib/firebase/client";
-import { useBirthdayMessages, useTournament } from "@/lib/firebase/db";
-import { tsToDate } from "@/lib/utils";
+import { useBirthdayMessages } from "@/lib/firebase/db";
 
 export default function MessagesPage() {
   const { player } = useAuth();
-  const { item: tournament } = useTournament();
   const { items: messages, loading } = useBirthdayMessages();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const revealed =
-    tournament?.status !== "setup" &&
-    (tournament?.startsAt ? Date.now() >= (tsToDate(tournament.startsAt)?.getTime() ?? 0) : true);
 
   async function send() {
     if (!player) {
@@ -83,7 +77,7 @@ export default function MessagesPage() {
           </p>
         </header>
 
-        {player && !player.isAyushi && (
+        {player && (
           <div className="card p-4 flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Avatar name={player.name} photoURL={player.photoURL} size={32} />
@@ -107,19 +101,6 @@ export default function MessagesPage() {
                 <Send size={14} />
                 Send to Ayushi
               </button>
-            </div>
-          </div>
-        )}
-
-        {!revealed && (
-          <div className="card p-4 bg-gradient-to-br from-court-700 to-court-800 text-white flex items-start gap-3">
-            <Lock size={18} className="shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Messages unlock at tip-off</p>
-              <p className="text-xs opacity-80 mt-0.5">
-                Leave your note now — Ayushi sees everything when the clock
-                strikes midnight.
-              </p>
             </div>
           </div>
         )}
@@ -157,9 +138,7 @@ export default function MessagesPage() {
                       {m.authorName}
                     </p>
                     <p className="text-sm text-ink-soft mt-1 whitespace-pre-wrap">
-                      {revealed || m.authorId === player?.id
-                        ? m.message
-                        : "🎁 Unlocks at midnight"}
+                      {m.message}
                     </p>
                   </div>
                 </div>

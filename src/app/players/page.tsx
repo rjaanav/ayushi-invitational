@@ -44,7 +44,6 @@ export default function PlayersPage() {
               <div className="text-center min-w-0 w-full">
                 <p className="font-semibold text-sm truncate">
                   {p.name}
-                  {p.isAyushi && " 👑"}
                 </p>
                 {p.funFact && (
                   <p className="text-[11px] text-muted italic line-clamp-2 mt-0.5">

@@ -17,7 +17,15 @@ import {
 import type { Match, Player, Round } from "@/lib/types";
 import { submitMatchScore, voteMVP } from "@/lib/firebase/tournamentActions";
 import { cn } from "@/lib/utils";
-import { Check, Coffee, Loader2, Moon, Trophy } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Clock,
+  Coffee,
+  Loader2,
+  Moon,
+  Trophy,
+} from "lucide-react";
 
 export default function TournamentPage() {
   const { player } = useAuth();
@@ -25,7 +33,6 @@ export default function TournamentPage() {
   const { items: rounds } = useRounds();
   const { items: matches } = useMatches();
   const { items: players } = usePlayers();
-  const [viewRound, setViewRound] = useState<number | null>(null);
 
   const playerMap = useMemo(() => {
     const m = new Map<string, Player>();
@@ -34,11 +41,33 @@ export default function TournamentPage() {
   }, [players]);
 
   const currentRoundNumber = tournament?.currentRound ?? 0;
-  const activeRoundNumber = viewRound ?? currentRoundNumber;
-  const activeRound = rounds.find((r) => r.number === activeRoundNumber) ?? null;
-  const roundMatches = matches
-    .filter((m) => m.roundId === activeRound?.id)
-    .sort((a, b) => a.court - b.court);
+  const sortedRounds = useMemo(
+    () => [...rounds].sort((a, b) => a.number - b.number),
+    [rounds]
+  );
+  const matchesByRound = useMemo(() => {
+    const map = new Map<string, Match[]>();
+    for (const m of matches) {
+      const list = map.get(m.roundId) ?? [];
+      list.push(m);
+      map.set(m.roundId, list);
+    }
+    for (const [k, list] of map.entries()) {
+      list.sort((a, b) => a.court - b.court);
+      map.set(k, list);
+    }
+    return map;
+  }, [matches]);
+
+  // Only admins score; everyone else gets a live read-only view.
+  const canScore = Boolean(player?.isAdmin);
+
+  const notStarted = !tournament || tournament.status === "setup";
+  const awaitingFirstRound = !notStarted && sortedRounds.length === 0;
+  const placeholderCount =
+    tournament && !notStarted
+      ? Math.max(0, (tournament.totalRounds ?? 0) - sortedRounds.length)
+      : 0;
 
   return (
     <div className="flex-1 flex flex-col pb-28">
@@ -52,8 +81,15 @@ export default function TournamentPage() {
             <h1 className="font-display text-3xl">
               {tournament?.status === "live" ? "Live now" : "The Americano"}
             </h1>
+            {tournament && !notStarted && (
+              <p className="text-[11px] text-muted mt-1">
+                {sortedRounds.length} of {tournament.totalRounds} rounds played
+                {" "}· {matches.filter((m) => m.status === "completed").length}{" "}
+                games final
+              </p>
+            )}
           </div>
-          {tournament?.status === "live" && (
+          {tournament?.status === "live" && currentRoundNumber > 0 && (
             <span className="chip chip-turf">
               <span className="w-1.5 h-1.5 rounded-full bg-turf-600 animate-pulse" />
               Live · R{currentRoundNumber}
@@ -61,7 +97,7 @@ export default function TournamentPage() {
           )}
         </header>
 
-        {!tournament || tournament.status === "setup" ? (
+        {notStarted ? (
           <div className="card p-6 text-center">
             <Moon className="mx-auto text-court-700 mb-2" />
             <p className="font-display text-xl">Not started yet</p>
@@ -69,26 +105,32 @@ export default function TournamentPage() {
               Your admin will kick things off when everyone&rsquo;s on court.
             </p>
           </div>
+        ) : awaitingFirstRound ? (
+          <div className="card p-6 text-center">
+            <Clock className="mx-auto text-court-700 mb-2" />
+            <p className="font-display text-xl">Waiting on the first round</p>
+            <p className="text-sm text-muted mt-1">
+              Rounds appear here as the host generates them.
+            </p>
+          </div>
         ) : (
           <>
-            <RoundTabs
-              rounds={rounds}
-              total={tournament.totalRounds}
-              activeNumber={activeRoundNumber}
-              currentNumber={currentRoundNumber}
-              onSelect={(n) => setViewRound(n)}
-            />
-
-            {activeRound && (
-              <RoundDetail
-                round={activeRound}
-                matches={roundMatches}
+            {sortedRounds.map((round) => (
+              <RoundSection
+                key={round.id}
+                round={round}
+                matches={matchesByRound.get(round.id) ?? []}
                 playerMap={playerMap}
                 myId={player?.id}
-                pointsPerMatch={tournament.pointsPerMatch}
-                // Only admins can submit scores; everyone else gets a live,
-                // read-only view of the same matches.
-                canScore={Boolean(player?.isAdmin)}
+                pointsPerMatch={tournament!.pointsPerMatch}
+                canScore={canScore}
+                isCurrent={round.number === currentRoundNumber}
+              />
+            ))}
+            {placeholderCount > 0 && (
+              <UpcomingRoundsPlaceholder
+                from={sortedRounds.length + 1}
+                count={placeholderCount}
               />
             )}
           </>
@@ -99,67 +141,19 @@ export default function TournamentPage() {
   );
 }
 
-function RoundTabs({
-  rounds,
-  total,
-  activeNumber,
-  currentNumber,
-  onSelect,
-}: {
-  rounds: Round[];
-  total: number;
-  activeNumber: number;
-  currentNumber: number;
-  onSelect: (n: number) => void;
-}) {
-  const tabs: { n: number; label: string; status: Round["status"] | "pending" }[] = [];
-  for (let i = 1; i <= total; i++) {
-    const r = rounds.find((r) => r.number === i);
-    tabs.push({
-      n: i,
-      label: `R${i}`,
-      status: r ? r.status : "pending",
-    });
-  }
-  return (
-    <div className="overflow-x-auto -mx-4 px-4">
-      <div className="flex gap-2 min-w-max">
-        {tabs.map((t) => {
-          const active = t.n === activeNumber;
-          return (
-            <button
-              key={t.n}
-              onClick={() => onSelect(t.n)}
-              className={cn(
-                "flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all",
-                active
-                  ? "bg-court-800 text-white shadow-md"
-                  : "bg-white text-ink-soft border border-black/5",
-                t.n === currentNumber && !active && "ring-2 ring-pink-300"
-              )}
-            >
-              {t.label}
-              {t.status === "live" && (
-                <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-turf-500 animate-pulse" />
-              )}
-              {t.status === "completed" && (
-                <span className="ml-1.5 text-turf-500">✓</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RoundDetail({
+/**
+ * A single round with a header that's always visible (so scores stay readable
+ * at a glance even when the round is collapsed) and an expandable body with
+ * the full match cards. Current round stays expanded by default.
+ */
+function RoundSection({
   round,
   matches,
   playerMap,
   myId,
   pointsPerMatch,
   canScore,
+  isCurrent,
 }: {
   round: Round;
   matches: Match[];
@@ -167,43 +161,338 @@ function RoundDetail({
   myId?: string;
   pointsPerMatch: number;
   canScore: boolean;
+  isCurrent: boolean;
 }) {
-  const resters = round.resting.map((id) => playerMap.get(id)).filter(Boolean) as Player[];
+  const completedCount = matches.filter((m) => m.status === "completed").length;
+  const allComplete = matches.length > 0 && completedCount === matches.length;
+
+  // Past, fully-complete rounds collapse by default so the current round is
+  // the easiest thing to find. Current/in-progress rounds stay expanded.
+  const [open, setOpen] = useState(!allComplete || isCurrent);
+  // If a round flips to "current" (e.g. admin just generated the next round),
+  // pop it back open.
+  useEffect(() => {
+    if (isCurrent) setOpen(true);
+  }, [isCurrent]);
+
+  const resters = (round.resting ?? [])
+    .map((id) => playerMap.get(id))
+    .filter(Boolean) as Player[];
+
+  const statusChip = (() => {
+    if (allComplete) {
+      return (
+        <span className="chip chip-turf">
+          <Check size={12} /> Final
+        </span>
+      );
+    }
+    if (round.status === "live" || isCurrent) {
+      return (
+        <span className="chip chip-turf">
+          <span className="w-1.5 h-1.5 rounded-full bg-turf-600 animate-pulse" />
+          Live
+        </span>
+      );
+    }
+    return <span className="chip">Upcoming</span>;
+  })();
 
   return (
-    <div className="flex flex-col gap-4">
-      {matches.map((m) => (
-        <MatchCard
-          key={m.id}
-          match={m}
-          playerMap={playerMap}
-          myId={myId}
-          pointsPerMatch={pointsPerMatch}
-          canScore={canScore}
-        />
-      ))}
-
-      {resters.length > 0 && (
-        <div className="card p-4 bg-pink-100/50">
-          <div className="flex items-center gap-2 mb-2">
-            <Coffee size={16} className="text-court-700" />
-            <p className="text-xs uppercase tracking-wider font-bold text-court-800">
-              Resting this round
-            </p>
+    <motion.section
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "rounded-3xl bg-white overflow-hidden shadow-[0_6px_20px_-14px_rgba(17,24,39,0.3)] border",
+        isCurrent ? "border-pink-300/70 ring-2 ring-pink-300/40" : "border-black/5"
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-3 p-4 text-left"
+        aria-expanded={open}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-display text-xl">Round {round.number}</p>
+            {statusChip}
           </div>
-          <div className="flex -space-x-2">
-            {resters.map((p) => (
-              <div key={p.id} title={p.name}>
-                <Avatar name={p.name} photoURL={p.photoURL} size={38} ring />
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted mt-2">
-            Hydrate, hype up the courts, grab the mic 🎤
+          <p className="text-[11px] text-muted mt-0.5">
+            {matches.length} match{matches.length === 1 ? "" : "es"}
+            {matches.length > 0 &&
+              ` · ${completedCount}/${matches.length} complete`}
+            {resters.length > 0 &&
+              ` · ${resters.length} resting`}
           </p>
+        </div>
+        <ChevronDown
+          size={18}
+          className={cn(
+            "text-muted shrink-0 transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+
+      {/* Always-visible compact score strip. Even when the round is collapsed,
+          non-admins see who played, the final score, and who won.  */}
+      {matches.length > 0 && (
+        <div className="px-4 pb-3 flex flex-col gap-1.5">
+          {matches.map((m) => (
+            <CompactScoreRow
+              key={m.id}
+              match={m}
+              playerMap={playerMap}
+              myId={myId}
+            />
+          ))}
+        </div>
+      )}
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="overflow-hidden"
+          >
+            <div className="p-4 pt-1 border-t border-black/5 flex flex-col gap-3">
+              {matches.map((m) => (
+                <MatchCard
+                  key={m.id}
+                  match={m}
+                  playerMap={playerMap}
+                  myId={myId}
+                  pointsPerMatch={pointsPerMatch}
+                  canScore={canScore}
+                />
+              ))}
+
+              {resters.length > 0 && (
+                <div className="card p-4 bg-pink-100/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Coffee size={16} className="text-court-700" />
+                    <p className="text-xs uppercase tracking-wider font-bold text-court-800">
+                      Resting this round
+                    </p>
+                  </div>
+                  <div className="flex -space-x-2">
+                    {resters.map((p) => (
+                      <div key={p.id} title={p.name}>
+                        <Avatar
+                          name={p.name}
+                          photoURL={p.photoURL}
+                          size={38}
+                          ring
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted mt-2">
+                    Hydrate, hype up the courts, grab the mic 🎤
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.section>
+  );
+}
+
+function UpcomingRoundsPlaceholder({
+  from,
+  count,
+}: {
+  from: number;
+  count: number;
+}) {
+  return (
+    <div className="rounded-3xl border-2 border-dashed border-court-200/60 bg-white/40 p-4 flex items-center gap-3">
+      <Clock size={16} className="text-court-700" />
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm">
+          {count === 1
+            ? `Round ${from}`
+            : `Rounds ${from}–${from + count - 1}`}
+        </p>
+        <p className="text-[11px] text-muted">
+          Still to be generated by the host.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A single-line readout of a match. Always visible (even when the round is
+ * collapsed) so non-admins can scan the whole tournament in one scroll. Shows
+ * avatars, team names, and the score once submitted.
+ */
+function CompactScoreRow({
+  match,
+  playerMap,
+  myId,
+}: {
+  match: Match;
+  playerMap: Map<string, Player>;
+  myId?: string;
+}) {
+  const teamA = match.teamA.map((id) => playerMap.get(id));
+  const teamB = match.teamB.map((id) => playerMap.get(id));
+  const completed = match.status === "completed";
+  const hasScore = typeof match.scoreA === "number" && typeof match.scoreB === "number";
+  const scoreA = match.scoreA ?? 0;
+  const scoreB = match.scoreB ?? 0;
+  const winner = completed && hasScore
+    ? scoreA > scoreB
+      ? "A"
+      : scoreB > scoreA
+        ? "B"
+        : "tie"
+    : null;
+  const imOnA = myId ? match.teamA.includes(myId) : false;
+  const imOnB = myId ? match.teamB.includes(myId) : false;
+  const mine = imOnA || imOnB;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 text-xs rounded-xl px-2 py-1.5 bg-sand/30",
+        mine && "bg-pink-100/60"
+      )}
+    >
+      <span className="text-[10px] uppercase tracking-widest text-muted w-10 shrink-0">
+        C{match.court}
+      </span>
+      <TeamStrip
+        team={teamA}
+        winner={winner === "A"}
+        loser={winner === "B"}
+      />
+      <ScorePill
+        completed={completed}
+        hasScore={hasScore}
+        live={match.status === "live"}
+        a={scoreA}
+        b={scoreB}
+        winner={winner}
+      />
+      <TeamStrip
+        team={teamB}
+        winner={winner === "B"}
+        loser={winner === "A"}
+        rightAlign
+      />
+    </div>
+  );
+}
+
+function TeamStrip({
+  team,
+  winner,
+  loser,
+  rightAlign,
+}: {
+  team: (Player | undefined)[];
+  winner?: boolean;
+  loser?: boolean;
+  rightAlign?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1.5 flex-1 min-w-0",
+        rightAlign && "justify-end"
+      )}
+    >
+      {!rightAlign && (
+        <div className="flex -space-x-1.5 shrink-0">
+          {team.map((p, i) => (
+            <Avatar
+              key={p?.id ?? i}
+              name={p?.name ?? ""}
+              photoURL={p?.photoURL}
+              size={20}
+            />
+          ))}
+        </div>
+      )}
+      <p
+        className={cn(
+          "text-[11px] truncate",
+          winner && "font-bold text-ink",
+          loser && "text-muted",
+          !winner && !loser && "font-semibold"
+        )}
+      >
+        {team
+          .map((p) => p?.name.split(" ")[0] ?? "?")
+          .join(" & ")}
+      </p>
+      {rightAlign && (
+        <div className="flex -space-x-1.5 shrink-0">
+          {team.map((p, i) => (
+            <Avatar
+              key={p?.id ?? i}
+              name={p?.name ?? ""}
+              photoURL={p?.photoURL}
+              size={20}
+            />
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+function ScorePill({
+  completed,
+  hasScore,
+  live,
+  a,
+  b,
+  winner,
+}: {
+  completed: boolean;
+  hasScore: boolean;
+  live: boolean;
+  a: number;
+  b: number;
+  winner: "A" | "B" | "tie" | null;
+}) {
+  if (!hasScore || (!completed && a === 0 && b === 0)) {
+    return (
+      <span
+        className={cn(
+          "font-mono text-[11px] px-2 py-0.5 rounded-full shrink-0",
+          live
+            ? "bg-turf-500/15 text-turf-600 font-semibold"
+            : "bg-black/5 text-muted"
+        )}
+      >
+        {live ? "live" : "vs"}
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        "font-mono font-bold tabular-nums text-sm px-2 py-0.5 rounded-full shrink-0",
+        completed
+          ? "bg-court-800 text-white"
+          : "bg-turf-500/15 text-turf-700"
+      )}
+    >
+      <span className={cn(winner === "A" && "text-pink-200")}>{a}</span>
+      <span className="opacity-50 mx-0.5">–</span>
+      <span className={cn(winner === "B" && "text-pink-200")}>{b}</span>
+    </span>
   );
 }
 
@@ -251,6 +540,13 @@ function MatchCard({
   const total = a + b;
   const remaining = Math.max(0, pointsPerMatch - total);
   const atCap = remaining <= 0;
+  const winner: "A" | "B" | "tie" | null = completed
+    ? a > b
+      ? "A"
+      : b > a
+        ? "B"
+        : "tie"
+    : null;
 
   async function save() {
     if (total === 0) {
@@ -328,6 +624,7 @@ function MatchCard({
           score={a}
           canEdit={canScore}
           canIncrement={!atCap}
+          result={winner === "A" ? "win" : winner === "B" ? "loss" : null}
           onChange={(n) => {
             markEdited();
             setA(Math.max(0, Math.min(n, pointsPerMatch - b)));
@@ -341,6 +638,7 @@ function MatchCard({
           score={b}
           canEdit={canScore}
           canIncrement={!atCap}
+          result={winner === "B" ? "win" : winner === "A" ? "loss" : null}
           onChange={(n) => {
             markEdited();
             setB(Math.max(0, Math.min(n, pointsPerMatch - a)));
@@ -416,6 +714,7 @@ function TeamBlock({
   canIncrement,
   onChange,
   rightAlign,
+  result,
 }: {
   team: (Player | undefined)[];
   score: number;
@@ -423,18 +722,46 @@ function TeamBlock({
   canIncrement: boolean;
   onChange: (n: number) => void;
   rightAlign?: boolean;
+  result?: "win" | "loss" | null;
 }) {
+  const isWin = result === "win";
+  const isLoss = result === "loss";
   return (
     <div className={cn("flex flex-col gap-2", rightAlign && "items-end text-right")}>
       <div className={cn("flex -space-x-2", rightAlign && "justify-end")}>
         {team.map((p, i) => (
-          <Avatar key={p?.id ?? i} name={p?.name ?? ""} photoURL={p?.photoURL} size={36} ring />
+          <Avatar
+            key={p?.id ?? i}
+            name={p?.name ?? ""}
+            photoURL={p?.photoURL}
+            size={36}
+            ring={isWin || undefined}
+            className={cn(
+              isWin && "ring-2 ring-turf-500 ring-offset-2 ring-offset-white",
+              isLoss && "opacity-70"
+            )}
+          />
         ))}
       </div>
       <div className={cn(rightAlign && "text-right")}>
         {team.map((p, i) => (
-          <p key={p?.id ?? i} className="text-[11px] font-semibold truncate max-w-[9rem]">
+          <p
+            key={p?.id ?? i}
+            className={cn(
+              "text-[11px] truncate max-w-[9rem]",
+              isWin ? "font-bold text-ink" : "font-semibold",
+              isLoss && "text-muted"
+            )}
+          >
             {p?.name || "?"}
+            {isWin && i === 0 && (
+              <span
+                className="ml-1 inline-flex items-center justify-center rounded-full bg-turf-500/15 text-turf-700 text-[9px] font-bold px-1.5 py-[1px] align-middle"
+                title="Winner"
+              >
+                W
+              </span>
+            )}
           </p>
         ))}
       </div>
@@ -452,7 +779,13 @@ function TeamBlock({
             >
               −
             </button>
-            <span className="font-display text-3xl tabular-nums w-10 text-center">
+            <span
+              className={cn(
+                "font-display text-3xl tabular-nums w-10 text-center",
+                isWin && "text-turf-600",
+                isLoss && "text-muted"
+              )}
+            >
               {score}
             </span>
             <button
@@ -470,7 +803,15 @@ function TeamBlock({
             </button>
           </>
         ) : (
-          <span className="font-display text-3xl tabular-nums">{score}</span>
+          <span
+            className={cn(
+              "font-display text-3xl tabular-nums",
+              isWin && "text-turf-600",
+              isLoss && "text-muted"
+            )}
+          >
+            {score}
+          </span>
         )}
       </div>
     </div>

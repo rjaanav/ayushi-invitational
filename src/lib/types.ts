@@ -9,7 +9,6 @@ export interface Player {
   photoURL?: string; // selfie with Ayushi
   joinedAt: TimestampLike;
   isAdmin?: boolean;
-  isAyushi?: boolean;
   funFact?: string;
   // Live stats (denormalized for fast reads)
   points: number;
@@ -54,7 +53,6 @@ export interface Tournament {
   status: "setup" | "live" | "completed";
   startedAt?: TimestampLike;
   startsAt?: TimestampLike; // scheduled start (midnight of the 28th)
-  ayushiId?: string;
   theme?: string;
 }
 
@@ -85,7 +83,6 @@ export interface Prediction {
   userId: string;
   userName: string;
   championId?: string; // predicted winner
-  ayushiPlacement?: number; // 1..N where N = onboarded player count
   mvpId?: string;
   createdAt: TimestampLike;
 }

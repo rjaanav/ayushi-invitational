@@ -12,7 +12,6 @@ import {
 import confetti from "canvas-confetti";
 import {
   ChevronRight,
-  Crown,
   Loader2,
   Play,
   PlusCircle,
@@ -40,7 +39,6 @@ import {
   promoteAdmin,
   removeTestPlayers,
   seedTestPlayers,
-  setAyushi,
   startRound,
   updateTournament,
 } from "@/lib/firebase/tournamentActions";
@@ -298,11 +296,6 @@ export default function AdminPage() {
                         <Shield size={10} /> admin
                       </span>
                     )}
-                    {p.isAyushi && (
-                      <span className="chip ml-2 !py-0 !px-1.5 !text-[10px]">
-                        <Crown size={10} /> ayushi
-                      </span>
-                    )}
                   </p>
                   <p className="text-[11px] text-muted truncate">
                     {p.phone || p.id}
@@ -320,19 +313,6 @@ export default function AdminPage() {
                       className="text-xs px-2 py-1 rounded-full bg-court-800 text-white"
                     >
                       Make admin
-                    </button>
-                  )}
-                  {!p.isAyushi && (
-                    <button
-                      onClick={() =>
-                        wrap(`ayushi-${p.id}`, async () => {
-                          await setAyushi(p.id);
-                          toast.success("👑 Birthday girl set");
-                        })
-                      }
-                      className="text-xs px-2 py-1 rounded-full bg-pink-400 text-white"
-                    >
-                      Set Ayushi
                     </button>
                   )}
                 </div>

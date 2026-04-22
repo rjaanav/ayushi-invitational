@@ -69,10 +69,6 @@ Open <http://localhost:3000>, login with your phone, finish onboarding, then:
 After you log in once, go to Firestore → `players/<your uid>` and set `isAdmin: true`.
 From then on you can promote others from the in-app Admin panel (`/admin`).
 
-### 7. Set Ayushi
-
-Admin panel → Players → tap **Set Ayushi** next to her profile once she logs in and onboards. She gets a 👑 everywhere and can't post messages to herself.
-
 ## Running the night of
 
 1. Everyone logs in via phone, adds name + selfie, writes a birthday message.
@@ -80,9 +76,7 @@ Admin panel → Players → tap **Set Ayushi** next to her profile once she logs
 3. Admin taps **Generate round 1** → **Start round** once players are on court.
 4. After each match, admin (or a trusted scorekeeper — anyone with `isAdmin`) enters scores from `/tournament`.
 5. Once all matches in a round are completed, admin hits **Generate next round** → algorithm produces balanced Americano pairings based on current standings.
-6. Cast the `/bigscreen` view on a TV next to the courts for maximum energy.
-7. Between rounds: check `/awards`, hand out superlatives.
-8. When the last round finishes, admin hits **Finish tournament** → confetti storm.
+6. When the last round finishes, admin hits **Finish tournament** → confetti storm.
 
 ## Tournament logic
 

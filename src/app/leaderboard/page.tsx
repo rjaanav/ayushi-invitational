@@ -112,7 +112,6 @@ export default function LeaderboardPage() {
                     <p className="font-semibold text-sm truncate">
                       {p.name}
                       {isMe && <span className="chip ml-2 !py-0 !px-1.5 !text-[10px]">you</span>}
-                      {p.isAyushi && <span className="chip chip-turf ml-2 !py-0 !px-1.5 !text-[10px]">👑 birthday</span>}
                     </p>
                     <p className="text-[11px] text-muted">
                       {p.matchesPlayed ?? 0} played · {p.wins ?? 0}W-{p.losses ?? 0}L · diff {(p.pointsFor ?? 0) - (p.pointsAgainst ?? 0) >= 0 ? "+" : ""}

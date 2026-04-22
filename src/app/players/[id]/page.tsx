@@ -53,9 +53,6 @@ export default function PlayerPage({
               <Avatar name={p.name} photoURL={p.photoURL} size={104} ring />
               <div>
                 <h1 className="font-display text-2xl">{p.name}</h1>
-                {p.isAyushi && (
-                  <span className="chip mt-1">👑 Birthday girl</span>
-                )}
               </div>
               {p.funFact && (
                 <p className="text-sm text-ink-soft italic max-w-xs">
