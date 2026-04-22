@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Camera, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
-import Link from "next/link";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -84,8 +83,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex-1 flex flex-col pb-24">
-      <div className="px-4 pt-4 flex items-center justify-between">
-        <Link href="/" className="text-sm text-muted">Skip</Link>
+      <div className="px-4 pt-4 flex items-center justify-end">
         <span className="text-[11px] uppercase tracking-[0.25em] text-court-700 font-semibold">
           Step 1 of 1
         </span>
