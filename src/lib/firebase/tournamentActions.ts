@@ -15,7 +15,11 @@ import {
   where,
 } from "firebase/firestore";
 import { getDb } from "./client";
-import { generateAmericanoRound, type PlayerStanding } from "@/lib/americano";
+import {
+  MIN_PLAYERS_FOR_ROUND,
+  generateAmericanoRound,
+  type PlayerStanding,
+} from "@/lib/americano";
 import type { Match, Player, Round, Tournament } from "@/lib/types";
 
 const TOURNAMENT_ID = "main";
@@ -112,14 +116,17 @@ export async function generateNextRound() {
   const t = tSnap.data() as Omit<Tournament, "id">;
 
   const standings = await buildStandings();
-  if (standings.length < t.courts * 4) {
+  if (standings.length < MIN_PLAYERS_FOR_ROUND) {
     throw new Error(
-      `Need at least ${t.courts * 4} onboarded players (have ${standings.length}).`
+      `Need at least ${MIN_PLAYERS_FOR_ROUND} onboarded players to start (have ${standings.length}).`
     );
   }
 
   const expectedCurrent = t.currentRound ?? 0;
   const nextNumber = expectedCurrent + 1;
+  // The generator auto-caps courts to whatever the pool can fill; we pass the
+  // admin's preferred number and let it scale down if there aren't enough
+  // onboarded players to cover every court.
   const generated = generateAmericanoRound({
     standings,
     courts: t.courts,

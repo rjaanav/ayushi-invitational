@@ -5,11 +5,11 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/Avatar";
 import { usePlayers } from "@/lib/firebase/db";
-import { EVENT } from "@/lib/eventConfig";
 
 export default function PlayersPage() {
   const { items: players } = usePlayers();
   const onboarded = players.filter((p) => p.name);
+  const count = onboarded.length;
 
   return (
     <div className="flex-1 flex flex-col pb-28">
@@ -19,9 +19,17 @@ export default function PlayersPage() {
           <p className="text-[11px] uppercase tracking-[0.25em] text-court-700 font-semibold">
             The Line-up
           </p>
-          <h1 className="font-display text-3xl">14 players. One night.</h1>
+          <h1 className="font-display text-3xl">
+            {count === 0
+              ? "No one here yet."
+              : count === 1
+                ? "1 player. One night."
+                : `${count} players. One night.`}
+          </h1>
           <p className="text-sm text-muted mt-1">
-            {onboarded.length} of {EVENT.maxPlayers} checked in.
+            {count === 0
+              ? "Be the first to check in."
+              : `${count} checked in.`}
           </p>
         </header>
 

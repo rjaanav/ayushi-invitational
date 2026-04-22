@@ -85,7 +85,7 @@ export interface Prediction {
   userId: string;
   userName: string;
   championId?: string; // predicted winner
-  ayushiPlacement?: number; // 1..14
+  ayushiPlacement?: number; // 1..N where N = onboarded player count
   mvpId?: string;
   createdAt: TimestampLike;
 }

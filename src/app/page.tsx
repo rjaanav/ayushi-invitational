@@ -210,7 +210,9 @@ export default function HomePage() {
             href="/players"
             icon={<Sparkles size={18} />}
             title="Players"
-            subtitle={`${players.length}/${EVENT.maxPlayers} in`}
+            subtitle={
+              players.length === 1 ? "1 checked in" : `${players.length} checked in`
+            }
             tone="sand"
           />
         </div>

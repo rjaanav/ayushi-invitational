@@ -145,9 +145,9 @@ export default function PredictionsPage() {
             <input
               type="range"
               min={1}
-              max={onboarded.length || 14}
-              value={ayushiPlacement}
-              disabled={locked}
+              max={Math.max(2, onboarded.length)}
+              value={Math.min(ayushiPlacement, Math.max(2, onboarded.length))}
+              disabled={locked || onboarded.length < 2}
               onChange={(e) => setAyushiPlacement(parseInt(e.target.value))}
               className="flex-1 accent-pink-500"
             />

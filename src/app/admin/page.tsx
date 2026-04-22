@@ -42,6 +42,10 @@ import {
 } from "@/lib/firebase/tournamentActions";
 import { getDb } from "@/lib/firebase/client";
 import { EVENT } from "@/lib/eventConfig";
+import {
+  MIN_PLAYERS_FOR_ROUND,
+  effectiveCourtsFor,
+} from "@/lib/americano";
 
 export default function AdminPage() {
   const { player, loading } = useAuth();
@@ -113,6 +117,14 @@ export default function AdminPage() {
   }
 
   const onboardedCount = players.filter((p) => p.name && p.photoURL).length;
+  const configuredCourts = tournament?.courts ?? 0;
+  const effectiveCourts = effectiveCourtsFor(onboardedCount, configuredCourts);
+  const restersNextRound =
+    effectiveCourts > 0 ? Math.max(0, onboardedCount - effectiveCourts * 4) : 0;
+  const courtsScaled =
+    effectiveCourts > 0 && effectiveCourts < configuredCourts;
+  const canGenerate =
+    onboardedCount >= MIN_PLAYERS_FOR_ROUND && effectiveCourts > 0;
 
   return (
     <div className="flex-1 flex flex-col pb-28">
@@ -157,10 +169,32 @@ export default function AdminPage() {
           {tournament && (
             <>
               <div className="grid grid-cols-3 gap-2">
-                <Stat label="Players" value={onboardedCount} of={EVENT.maxPlayers} />
-                <Stat label="Courts" value={tournament.courts} />
+                <Stat label="Onboarded" value={onboardedCount} />
+                <Stat
+                  label="Courts"
+                  value={effectiveCourts || tournament.courts}
+                  of={courtsScaled ? tournament.courts : undefined}
+                />
                 <Stat label="Target" value={tournament.pointsPerMatch} suffix="pts" />
               </div>
+              {courtsScaled && (
+                <p className="text-[11px] text-muted -mt-1">
+                  Only {onboardedCount} players onboarded — scheduler will use
+                  {" "}{effectiveCourts} court{effectiveCourts === 1 ? "" : "s"} per
+                  round until more sign in.
+                </p>
+              )}
+              {onboardedCount > 0 && onboardedCount < MIN_PLAYERS_FOR_ROUND && (
+                <p className="text-[11px] text-pink-700 -mt-1">
+                  Need at least {MIN_PLAYERS_FOR_ROUND} onboarded players to start a round.
+                </p>
+              )}
+              {effectiveCourts > 0 && restersNextRound > 0 && (
+                <p className="text-[11px] text-muted -mt-1">
+                  Next round: {effectiveCourts * 4} play,{" "}
+                  {restersNextRound} rest.
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <SettingInput
                   label="Rounds"
@@ -182,7 +216,7 @@ export default function AdminPage() {
               </div>
               <div className="flex flex-col gap-2">
                 <button
-                  disabled={busy === "next" || onboardedCount < tournament.courts * 4}
+                  disabled={busy === "next" || !canGenerate}
                   onClick={() =>
                     wrap("next", async () => {
                       const { number } = await generateNextRound();

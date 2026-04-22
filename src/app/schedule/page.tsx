@@ -25,6 +25,14 @@ export default function SchedulePage() {
     return m;
   }, [players]);
 
+  // Derive the "courts in play" from the latest round's match count rather
+  // than the configured value — this way we reflect auto-scaling for small
+  // fields accurately.
+  const latestRound = rounds[rounds.length - 1];
+  const courtsInPlay = latestRound
+    ? matches.filter((m) => m.roundId === latestRound.id).length
+    : (tournament?.courts ?? 0);
+
   return (
     <div className="flex-1 flex flex-col pb-28">
       <TopBar />
@@ -35,7 +43,8 @@ export default function SchedulePage() {
           </Link>
           <h1 className="font-display text-3xl mt-2">Full schedule</h1>
           <p className="text-sm text-muted">
-            {tournament?.totalRounds ?? 0} rounds · {tournament?.courts ?? 0} courts
+            {tournament?.totalRounds ?? 0} rounds · {courtsInPlay}{" "}
+            {courtsInPlay === 1 ? "court" : "courts"}
           </p>
         </div>
 
