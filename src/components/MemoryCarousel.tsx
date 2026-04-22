@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Camera, Heart, PlusCircle } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
@@ -101,9 +101,10 @@ export function MemoryCarousel() {
         const maxScroll = el.scrollWidth - el.clientWidth;
         const next = el.scrollLeft + (SPEED_PX_PER_SEC * dt) / 1000;
         if (next >= maxScroll - 0.5) {
-          // Loop gently to the start.
-          el.scrollTo({ left: 0, behavior: "smooth" });
-          pausedUntilRef.current = now + 1200;
+          // Instant reset avoids fighting with the rAF loop (smooth-scroll
+          // would keep animating while our per-frame writes clobber it).
+          el.scrollLeft = 0;
+          pausedUntilRef.current = now + 1500;
         } else {
           el.scrollLeft = next;
         }
@@ -186,6 +187,9 @@ function PhotoCard({ memory, index }: { memory: Memory; index: number }) {
     return entries[0] ?? null;
   }, [memory.reactions]);
 
+  const [imgBroken, setImgBroken] = useState(false);
+  const showImage = Boolean(memory.imageURL) && !imgBroken;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -197,16 +201,22 @@ function PhotoCard({ memory, index }: { memory: Memory; index: number }) {
         aspectRatio: "4 / 5",
       }}
     >
-      {memory.imageURL ? (
+      {/* Always-present fallback sitting behind the image. */}
+      <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-pink-100 to-cream" />
+      {showImage && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={memory.imageURL}
           alt={memory.caption ?? `Memory from ${memory.authorName}`}
           className="absolute inset-0 h-full w-full object-cover"
           loading="lazy"
+          onError={() => setImgBroken(true)}
         />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-pink-200 to-pink-100" />
+      )}
+      {!showImage && (
+        <div className="absolute inset-0 flex items-center justify-center text-pink-700/70">
+          <Camera size={28} />
+        </div>
       )}
 
       {/* Bottom gradient + meta */}

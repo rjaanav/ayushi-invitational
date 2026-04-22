@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -221,6 +221,21 @@ function MatchCard({
   const [a, setA] = useState(match.scoreA ?? 0);
   const [b, setB] = useState(match.scoreB ?? 0);
   const [busy, setBusy] = useState(false);
+  // Treat the remote scores as the source of truth — sync them into local
+  // state whenever Firestore pushes a new snapshot. We protect against
+  // clobbering an in-progress edit with a short "dirty" window: if the
+  // scorekeeper on this device has tapped +/- in the last 8s, we skip the
+  // sync so their taps don't fight incoming updates.
+  const lastEditRef = useRef<number>(0);
+  const markEdited = () => {
+    lastEditRef.current = Date.now();
+  };
+  useEffect(() => {
+    const sinceEdit = Date.now() - lastEditRef.current;
+    if (sinceEdit < 8000) return;
+    setA(match.scoreA ?? 0);
+    setB(match.scoreB ?? 0);
+  }, [match.id, match.scoreA, match.scoreB, match.status]);
 
   const teamA = match.teamA.map((id) => playerMap.get(id));
   const teamB = match.teamB.map((id) => playerMap.get(id));
@@ -286,11 +301,30 @@ function MatchCard({
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <TeamBlock team={teamA} score={a} canEdit={canScore && !completed} onChange={setA} max={pointsPerMatch} />
+        <TeamBlock
+          team={teamA}
+          score={a}
+          canEdit={canScore && !completed}
+          onChange={(n) => {
+            markEdited();
+            setA(n);
+          }}
+          max={pointsPerMatch}
+        />
         <div className="flex flex-col items-center">
           <span className="font-display text-xl text-muted">vs</span>
         </div>
-        <TeamBlock team={teamB} score={b} canEdit={canScore && !completed} onChange={setB} max={pointsPerMatch} rightAlign />
+        <TeamBlock
+          team={teamB}
+          score={b}
+          canEdit={canScore && !completed}
+          onChange={(n) => {
+            markEdited();
+            setB(n);
+          }}
+          max={pointsPerMatch}
+          rightAlign
+        />
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-2">

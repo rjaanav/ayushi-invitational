@@ -118,6 +118,7 @@ export default function OnboardingPage() {
                 src={preview}
                 alt="Selfie preview"
                 className="h-full w-full object-cover"
+                onError={() => setPreview(null)}
               />
             ) : (
               <div className="h-full w-full flex flex-col items-center justify-center text-court-800">

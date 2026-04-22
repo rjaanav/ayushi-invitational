@@ -118,43 +118,56 @@ export async function generateNextRound() {
     );
   }
 
-  const nextNumber = (t.currentRound ?? 0) + 1;
+  const expectedCurrent = t.currentRound ?? 0;
+  const nextNumber = expectedCurrent + 1;
   const generated = generateAmericanoRound({
     standings,
     courts: t.courts,
     roundNumber: nextNumber,
   });
 
-  const batch = writeBatch(db);
+  // Pre-allocate document refs outside the transaction so we can use `tx.set`.
   const roundRef = doc(collection(db, "rounds"));
   const matchRefs = generated.matches.map(() => doc(collection(db, "matches")));
 
-  batch.set(roundRef, {
-    number: nextNumber,
-    resting: generated.resting,
-    matchIds: matchRefs.map((m) => m.id),
-    status: "upcoming",
-    startedAt: null,
-  });
+  // Serialize the write behind a transaction that re-reads `currentRound` to
+  // prevent two admins tapping "Generate" simultaneously and creating two
+  // rounds with the same `number`.
+  await runTransaction(db, async (tx) => {
+    const fresh = await tx.get(tRef);
+    if (!fresh.exists()) throw new Error("Tournament not initialized.");
+    const freshCurrent = (fresh.data().currentRound as number | undefined) ?? 0;
+    if (freshCurrent !== expectedCurrent) {
+      throw new Error(
+        "Someone else just generated a round. Refresh and try again."
+      );
+    }
 
-  generated.matches.forEach((m, idx) => {
-    const ref = matchRefs[idx]!;
-    batch.set(ref, {
-      roundId: roundRef.id,
-      roundNumber: nextNumber,
-      court: m.court,
-      teamA: m.teamA,
-      teamB: m.teamB,
+    tx.set(roundRef, {
+      number: nextNumber,
+      resting: generated.resting,
+      matchIds: matchRefs.map((m) => m.id),
       status: "upcoming",
+      startedAt: null,
+    });
+
+    generated.matches.forEach((m, idx) => {
+      tx.set(matchRefs[idx]!, {
+        roundId: roundRef.id,
+        roundNumber: nextNumber,
+        court: m.court,
+        teamA: m.teamA,
+        teamB: m.teamB,
+        status: "upcoming",
+      });
+    });
+
+    tx.update(tRef, {
+      currentRound: nextNumber,
+      status: "live",
     });
   });
 
-  batch.update(tRef, {
-    currentRound: nextNumber,
-    status: "live",
-  });
-
-  await batch.commit();
   return { roundId: roundRef.id, number: nextNumber };
 }
 
@@ -200,11 +213,18 @@ export async function submitMatchScore(params: {
     const prevCompleted = match.status === "completed";
 
     const playerIds = [...match.teamA, ...match.teamB];
-    const prevWonA = prevCompleted ? (prevA > prevB ? 1 : 0) : 0;
-    const prevWonB = prevCompleted ? (prevB > prevA ? 1 : 0) : 0;
 
-    const wonA = scoreA > scoreB ? 1 : 0;
-    const wonB = scoreB > scoreA ? 1 : 0;
+    // Derive win/loss flags, treating ties as neither (no win, no loss).
+    const winLossFor = (sA: number, sB: number) => ({
+      wonA: sA > sB ? 1 : 0,
+      wonB: sB > sA ? 1 : 0,
+      lossA: sA < sB ? 1 : 0,
+      lossB: sB < sA ? 1 : 0,
+    });
+    const prev = prevCompleted
+      ? winLossFor(prevA, prevB)
+      : { wonA: 0, wonB: 0, lossA: 0, lossB: 0 };
+    const cur = winLossFor(scoreA, scoreB);
 
     const playerRefs = playerIds.map((pid) => doc(db, "players", pid));
     const playerSnaps = await Promise.all(playerRefs.map((r) => tx.get(r)));
@@ -213,19 +233,14 @@ export async function submitMatchScore(params: {
       if (!snap.exists()) return;
       const pid = playerIds[i]!;
       const onA = match.teamA.includes(pid);
-      const deltaPoints =
-        (onA ? scoreA - (prevCompleted ? prevA : 0) : scoreB - (prevCompleted ? prevB : 0));
-      const deltaFor = onA ? scoreA - (prevCompleted ? prevA : 0) : scoreB - (prevCompleted ? prevB : 0);
-      const deltaAgainst = onA
-        ? scoreB - (prevCompleted ? prevB : 0)
-        : scoreA - (prevCompleted ? prevA : 0);
+      const basePrevA = prevCompleted ? prevA : 0;
+      const basePrevB = prevCompleted ? prevB : 0;
 
-      const deltaWins = onA
-        ? wonA - prevWonA
-        : wonB - prevWonB;
-      const deltaLosses = onA
-        ? (1 - wonA) - (prevCompleted ? 1 - prevWonA : 0)
-        : (1 - wonB) - (prevCompleted ? 1 - prevWonB : 0);
+      const deltaFor = onA ? scoreA - basePrevA : scoreB - basePrevB;
+      const deltaAgainst = onA ? scoreB - basePrevB : scoreA - basePrevA;
+      const deltaPoints = deltaFor;
+      const deltaWins = onA ? cur.wonA - prev.wonA : cur.wonB - prev.wonB;
+      const deltaLosses = onA ? cur.lossA - prev.lossA : cur.lossB - prev.lossB;
       const deltaPlayed = prevCompleted ? 0 : 1;
 
       tx.update(playerRefs[i]!, {
@@ -267,7 +282,18 @@ export async function promoteAdmin(userId: string) {
 export async function setAyushi(userId: string) {
   const db = getDb();
   const tRef = doc(db, "tournament", TOURNAMENT_ID);
+  const tSnap = await getDoc(tRef);
+  const previousAyushiId =
+    tSnap.exists() && typeof tSnap.data().ayushiId === "string"
+      ? (tSnap.data().ayushiId as string)
+      : null;
+
+  const batch = writeBatch(db);
   // setDoc with merge: true creates the doc if missing, otherwise patches it.
-  await setDoc(tRef, { ayushiId: userId }, { merge: true });
-  await updateDoc(doc(db, "players", userId), { isAyushi: true });
+  batch.set(tRef, { ayushiId: userId }, { merge: true });
+  if (previousAyushiId && previousAyushiId !== userId) {
+    batch.update(doc(db, "players", previousAyushiId), { isAyushi: false });
+  }
+  batch.update(doc(db, "players", userId), { isAyushi: true });
+  await batch.commit();
 }

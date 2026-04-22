@@ -72,15 +72,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!firebaseUser || !configured) return;
     const db = getDb();
     const ref = doc(db, "players", firebaseUser.uid);
+    // Guard so we only attempt the self-heal write once per listener lifetime.
+    let healed = false;
     const unsub = onSnapshot(
       ref,
       (snap) => {
         if (snap.exists()) {
           setPlayer({ id: snap.id, ...(snap.data() as Omit<Player, "id">) });
-        } else {
-          setPlayer(null);
+          setLoading(false);
+          return;
         }
+        // Auth succeeded but there's no player doc — either verifyOtp's upsert
+        // failed, or the doc was deleted. Re-create a blank skeleton so the
+        // onboarding flow and later writes (updateDoc) have something to patch.
+        setPlayer(null);
         setLoading(false);
+        if (!healed) {
+          healed = true;
+          setDoc(
+            ref,
+            {
+              phone: firebaseUser.phoneNumber ?? "",
+              name: "",
+              joinedAt: serverTimestamp(),
+              points: 0,
+              wins: 0,
+              losses: 0,
+              matchesPlayed: 0,
+              pointsFor: 0,
+              pointsAgainst: 0,
+            },
+            { merge: true }
+          ).catch((err) => {
+            console.error("Failed to self-heal player doc", err);
+            healed = false; // allow another try on the next snapshot
+          });
+        }
       },
       () => setLoading(false)
     );

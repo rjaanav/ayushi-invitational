@@ -116,6 +116,7 @@ function MemoryCard({
   myId?: string;
 }) {
   const [busy, setBusy] = useState(false);
+  const [imgBroken, setImgBroken] = useState(false);
   const my = myId ? memory.reactedBy?.[myId] : undefined;
 
   async function react(emoji: string) {
@@ -152,13 +153,22 @@ function MemoryCard({
       animate={{ opacity: 1, y: 0 }}
       className="card overflow-hidden flex flex-col"
     >
-      <div className="aspect-square overflow-hidden bg-black/5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={memory.imageURL}
-          alt={memory.caption ?? ""}
-          className="h-full w-full object-cover"
-        />
+      <div className="aspect-square overflow-hidden bg-gradient-to-br from-pink-100 to-sand relative">
+        {!imgBroken && memory.imageURL && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={memory.imageURL}
+            alt={memory.caption ?? ""}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setImgBroken(true)}
+          />
+        )}
+        {(imgBroken || !memory.imageURL) && (
+          <div className="absolute inset-0 flex items-center justify-center text-pink-600/70">
+            <Camera size={28} />
+          </div>
+        )}
       </div>
       <div className="p-2.5 flex flex-col gap-2">
         <div className="flex items-center gap-2">
@@ -284,7 +294,12 @@ function ComposerSheet({
         >
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="preview" className="h-full w-full object-cover" />
+            <img
+              src={preview}
+              alt="preview"
+              className="h-full w-full object-cover"
+              onError={() => setPreview(null)}
+            />
           ) : (
             <div className="text-court-800 flex flex-col items-center">
               <Camera size={28} />

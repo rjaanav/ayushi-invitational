@@ -43,14 +43,17 @@ export default function PredictionsPage() {
     setBusy(true);
     try {
       const db = getDb();
-      await setDoc(doc(db, "predictions", player.id), {
+      const base: Record<string, unknown> = {
         userId: player.id,
         userName: player.name,
         championId: championId || null,
         mvpId: mvpId || null,
         ayushiPlacement,
-        createdAt: serverTimestamp(),
-      });
+        updatedAt: serverTimestamp(),
+      };
+      // Only stamp `createdAt` the first time so edits don't overwrite it.
+      if (!myPred) base.createdAt = serverTimestamp();
+      await setDoc(doc(db, "predictions", player.id), base, { merge: true });
       toast.success("Predictions locked 🔮");
     } catch (err) {
       console.error(err);
