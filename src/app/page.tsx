@@ -131,36 +131,6 @@ export default function HomePage() {
           />
         )}
 
-        {/* Tournament status — only admins can tap through to enter scores. */}
-        {tournament?.status === "live" && currentRound && (
-          player?.isAdmin ? (
-            <Link
-              href="/admin"
-              className="card p-4 flex items-center justify-between"
-            >
-              <div>
-                <p className="chip chip-turf">Round {currentRound.number} · LIVE</p>
-                <p className="font-display text-lg text-ink mt-2">
-                  {matches.filter((m) => m.roundId === currentRound.id && m.status === "live").length} matches on court
-                </p>
-                <p className="text-xs text-muted mt-0.5">Tap to enter scores.</p>
-              </div>
-              <Trophy className="text-court-700" />
-            </Link>
-          ) : (
-            <div className="card p-4 flex items-center justify-between">
-              <div>
-                <p className="chip chip-turf">Round {currentRound.number} · LIVE</p>
-                <p className="font-display text-lg text-ink mt-2">
-                  {matches.filter((m) => m.roundId === currentRound.id && m.status === "live").length} matches on court
-                </p>
-                <p className="text-xs text-muted mt-0.5">Scores update live on the leaderboard.</p>
-              </div>
-              <Trophy className="text-court-700" />
-            </div>
-          )
-        )}
-
         {/* Podium preview */}
         {players.length > 0 && (
           <Link href="/leaderboard" className="card p-4 block">
