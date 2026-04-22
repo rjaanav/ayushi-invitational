@@ -127,8 +127,8 @@ export default function LeaderboardPage() {
           })}
         </div>
 
-        <Link href="/tournament" className="btn btn-primary">
-          <Trophy size={16} /> Back to tournament
+        <Link href="/schedule" className="btn btn-primary">
+          <Trophy size={16} /> See full schedule
         </Link>
       </main>
       <BottomNav />

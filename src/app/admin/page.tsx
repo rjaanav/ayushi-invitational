@@ -26,6 +26,7 @@ import {
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/Avatar";
+import { LiveScoring } from "@/components/LiveScoring";
 import { useAuth } from "@/lib/hooks/useAuth";
 import {
   useMatches,
@@ -138,6 +139,10 @@ export default function AdminPage() {
           </p>
           <h1 className="font-display text-3xl">Tournament cockpit 🎛️</h1>
         </header>
+
+        {/* Live scoring — the primary thing the admin does during the event.
+            Everything below is setup / cleanup. */}
+        <LiveScoring />
 
         {/* Setup / State */}
         <section className="card p-4 flex flex-col gap-3">

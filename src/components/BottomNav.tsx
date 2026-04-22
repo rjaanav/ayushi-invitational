@@ -7,7 +7,6 @@ import {
   Trophy,
   Camera,
   Heart,
-  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -20,7 +19,6 @@ type NavTab = {
 
 const BASE_TABS: NavTab[] = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/tournament", label: "Tournament", icon: Trophy },
   { href: "/memories", label: "Memories", icon: Camera },
   { href: "/messages", label: "For Ayushi", icon: Heart },
 ];
@@ -31,7 +29,7 @@ export function BottomNav() {
 
   const tabs: NavTab[] = [...BASE_TABS];
   if (player?.isAdmin) {
-    tabs.push({ href: "/admin", label: "Admin", icon: Settings2 });
+    tabs.push({ href: "/admin", label: "Score", icon: Trophy });
   }
 
   const hiddenOn = ["/login", "/onboarding"];

@@ -74,7 +74,7 @@ From then on you can promote others from the in-app Admin panel (`/admin`).
 1. Everyone logs in via phone, adds name + selfie, writes a birthday message.
 2. Admin goes to `/admin` → **Initialize tournament** → confirm courts (3), race-to points (24), total rounds (e.g. 7).
 3. Admin taps **Generate round 1** → **Start round** once players are on court.
-4. After each match, admin (or a trusted scorekeeper — anyone with `isAdmin`) enters scores from `/tournament`.
+4. After each match, admin (or a trusted scorekeeper — anyone with `isAdmin`) enters scores from the **Score** tab (`/admin`). Non-admins can follow along live on `/schedule`.
 5. Once all matches in a round are completed, admin hits **Generate next round** → algorithm produces balanced Americano pairings based on current standings.
 6. When the last round finishes, admin hits **Finish tournament** → confetti storm.
 

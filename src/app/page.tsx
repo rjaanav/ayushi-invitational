@@ -117,7 +117,8 @@ export default function HomePage() {
           </Link>
         )}
 
-        {/* Your next match */}
+        {/* Your next match — admins jump into the scoring cockpit,
+            everyone else drops into the full schedule view. */}
         {player && myNextMatch && (
           <MatchCallout
             matchNumber={myNextMatch.court}
@@ -126,13 +127,14 @@ export default function HomePage() {
             teamA={myNextMatch.teamA}
             teamB={myNextMatch.teamB}
             players={players}
+            href={player.isAdmin ? "/admin" : "/schedule"}
           />
         )}
 
         {/* Tournament status */}
         {tournament?.status === "live" && currentRound && (
           <Link
-            href="/tournament"
+            href={player?.isAdmin ? "/admin" : "/schedule"}
             className="card p-4 flex items-center justify-between"
           >
             <div>
@@ -141,7 +143,7 @@ export default function HomePage() {
                 {matches.filter((m) => m.roundId === currentRound.id && m.status === "live").length} matches on court
               </p>
               <p className="text-xs text-muted mt-0.5">
-                Tap to watch, score &amp; cheer.
+                {player?.isAdmin ? "Tap to enter scores." : "Tap to watch live."}
               </p>
             </div>
             <Trophy className="text-court-700" />
@@ -233,6 +235,7 @@ function MatchCallout({
   teamA,
   teamB,
   players,
+  href,
 }: {
   matchNumber: number;
   roundNumber: number;
@@ -240,6 +243,7 @@ function MatchCallout({
   teamA: string[];
   teamB: string[];
   players: { id: string; name: string; photoURL?: string }[];
+  href: string;
 }) {
   const find = (id: string) => players.find((p) => p.id === id);
   const onTeamA = teamA.includes(me);
@@ -251,7 +255,7 @@ function MatchCallout({
   const v2 = find(vs[1] ?? "");
   return (
     <Link
-      href="/tournament"
+      href={href}
       className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-400 to-pink-300 text-white p-5"
     >
       <p className="text-[11px] tracking-[0.25em] uppercase opacity-90">

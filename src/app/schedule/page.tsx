@@ -38,8 +38,8 @@ export default function SchedulePage() {
       <TopBar />
       <main className="flex-1 px-4 pt-4 flex flex-col gap-4">
         <div>
-          <Link href="/tournament" className="inline-flex items-center gap-1 text-sm text-muted">
-            <ArrowLeft size={14} /> Tournament
+          <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted">
+            <ArrowLeft size={14} /> Home
           </Link>
           <h1 className="font-display text-3xl mt-2">Full schedule</h1>
           <p className="text-sm text-muted">
