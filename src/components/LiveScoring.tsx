@@ -26,13 +26,12 @@ import {
 } from "lucide-react";
 
 /**
- * Shared tournament surface: every generated round stacked vertically, each
- * with the match cards. Admins (default) get the full +/- score controls and
- * Submit button. Non-admins pass `readOnly` and see the exact same layout —
- * scores, winner highlights, rest list, MVP prompt — just without any edit
- * affordances.
+ * Admin-only live scoring surface: every generated round stacked vertically,
+ * each with the match cards + cumulative-cap score controls. Non-admins don't
+ * render this — the tab is hidden for them. Anyone peeking at live scores
+ * outside this view uses `/schedule`.
  */
-export function LiveScoring({ readOnly = false }: { readOnly?: boolean } = {}) {
+export function LiveScoring() {
   const { player } = useAuth();
   const { item: tournament } = useTournament();
   const { items: rounds } = useRounds();
@@ -71,26 +70,12 @@ export function LiveScoring({ readOnly = false }: { readOnly?: boolean } = {}) {
       ? Math.max(0, (tournament.totalRounds ?? 0) - sortedRounds.length)
       : 0;
 
-  // The current round has "ended" when every match that belongs to it is
-  // completed. Until the host generates the next round we want to reflect that
-  // in the header chip — swap pulsing "Live" for a "Final" badge so the page
-  // doesn't keep advertising live action that's already over.
-  const currentRound = sortedRounds.find(
-    (r) => r.number === currentRoundNumber
-  );
-  const currentRoundMatches = currentRound
-    ? matchesByRound.get(currentRound.id) ?? []
-    : [];
-  const currentRoundEnded =
-    currentRoundMatches.length > 0 &&
-    currentRoundMatches.every((m) => m.status === "completed");
-
   return (
     <section className="flex flex-col gap-4">
       <header className="flex items-end justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-[0.25em] text-court-700 font-semibold">
-            {readOnly ? "Tournament" : "Live scoring"}
+            Live scoring
           </p>
           <h2 className="font-display text-2xl">
             {tournament?.status === "live" ? "On court now" : "The Americano"}
@@ -104,16 +89,10 @@ export function LiveScoring({ readOnly = false }: { readOnly?: boolean } = {}) {
           )}
         </div>
         {tournament?.status === "live" && currentRoundNumber > 0 && (
-          currentRoundEnded ? (
-            <span className="chip chip-turf">
-              <Check size={12} /> R{currentRoundNumber} · Final
-            </span>
-          ) : (
-            <span className="chip chip-turf">
-              <span className="w-1.5 h-1.5 rounded-full bg-turf-600 animate-pulse" />
-              Live · R{currentRoundNumber}
-            </span>
-          )
+          <span className="chip chip-turf">
+            <span className="w-1.5 h-1.5 rounded-full bg-turf-600 animate-pulse" />
+            Live · R{currentRoundNumber}
+          </span>
         )}
       </header>
 
@@ -122,9 +101,8 @@ export function LiveScoring({ readOnly = false }: { readOnly?: boolean } = {}) {
           <Moon className="mx-auto text-court-700 mb-2" />
           <p className="font-display text-xl">Not started yet</p>
           <p className="text-sm text-muted mt-1">
-            {readOnly
-              ? "Your host will kick things off when everyone's on court."
-              : "Initialize the tournament below, then generate round 1 to start scoring."}
+            Initialize the tournament below, then generate round 1 to start
+            scoring.
           </p>
         </div>
       ) : awaitingFirstRound ? (
@@ -132,9 +110,8 @@ export function LiveScoring({ readOnly = false }: { readOnly?: boolean } = {}) {
           <Clock className="mx-auto text-court-700 mb-2" />
           <p className="font-display text-xl">Waiting on the first round</p>
           <p className="text-sm text-muted mt-1">
-            {readOnly
-              ? "Pairings appear here the moment the host generates them."
-              : "Tap Generate round 1 below to produce the first pairings."}
+            Tap <strong>Generate round 1</strong> below to produce the first
+            pairings.
           </p>
         </div>
       ) : (
@@ -148,7 +125,6 @@ export function LiveScoring({ readOnly = false }: { readOnly?: boolean } = {}) {
               myId={player?.id}
               pointsPerMatch={tournament!.pointsPerMatch}
               isCurrent={round.number === currentRoundNumber}
-              readOnly={readOnly}
             />
           ))}
           {placeholderCount > 0 && (
@@ -175,7 +151,6 @@ function RoundSection({
   myId,
   pointsPerMatch,
   isCurrent,
-  readOnly,
 }: {
   round: Round;
   matches: Match[];
@@ -183,7 +158,6 @@ function RoundSection({
   myId?: string;
   pointsPerMatch: number;
   isCurrent: boolean;
-  readOnly: boolean;
 }) {
   const completedCount = matches.filter((m) => m.status === "completed").length;
   const allComplete = matches.length > 0 && completedCount === matches.length;
@@ -290,7 +264,6 @@ function RoundSection({
                   playerMap={playerMap}
                   myId={myId}
                   pointsPerMatch={pointsPerMatch}
-                  readOnly={readOnly}
                 />
               ))}
 
@@ -523,13 +496,11 @@ function MatchCard({
   playerMap,
   myId,
   pointsPerMatch,
-  readOnly,
 }: {
   match: Match;
   playerMap: Map<string, Player>;
   myId?: string;
   pointsPerMatch: number;
-  readOnly: boolean;
 }) {
   const [a, setA] = useState(match.scoreA ?? 0);
   const [b, setB] = useState(match.scoreB ?? 0);
@@ -644,7 +615,6 @@ function MatchCard({
         <TeamBlock
           team={teamA}
           score={a}
-          canEdit={!readOnly}
           canIncrement={!atCap}
           result={winner === "A" ? "win" : winner === "B" ? "loss" : null}
           onChange={(n) => {
@@ -658,7 +628,6 @@ function MatchCard({
         <TeamBlock
           team={teamB}
           score={b}
-          canEdit={!readOnly}
           canIncrement={!atCap}
           result={winner === "B" ? "win" : winner === "A" ? "loss" : null}
           onChange={(n) => {
@@ -674,7 +643,7 @@ function MatchCard({
           <p className="text-[11px] text-muted">
             Match to <strong className="text-ink">{pointsPerMatch}</strong> total
           </p>
-          {!readOnly && !completed && (
+          {!completed && (
             <p
               className={cn(
                 "text-[11px] font-semibold tabular-nums",
@@ -686,35 +655,28 @@ function MatchCard({
                 : `${remaining} pt${remaining === 1 ? "" : "s"} remaining`}
             </p>
           )}
-          {readOnly && !completed && (
-            <p className="text-[11px] text-muted">
-              Host scores it. Updates live.
-            </p>
-          )}
-          {!readOnly && completed && total !== pointsPerMatch && (
+          {completed && total !== pointsPerMatch && (
             <p className="text-[11px] text-amber-600 font-semibold">
               Saved at {total}/{pointsPerMatch} — edit if that&rsquo;s wrong.
             </p>
           )}
         </div>
-        {!readOnly && (
-          <button
-            onClick={save}
-            disabled={busy}
-            className={cn("btn", completed ? "btn-ghost" : "btn-turf")}
-          >
-            {busy ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : completed ? (
-              "Update score"
-            ) : (
-              <>
-                <Trophy size={14} />
-                Submit
-              </>
-            )}
-          </button>
-        )}
+        <button
+          onClick={save}
+          disabled={busy}
+          className={cn("btn", completed ? "btn-ghost" : "btn-turf")}
+        >
+          {busy ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : completed ? (
+            "Update score"
+          ) : (
+            <>
+              <Trophy size={14} />
+              Submit
+            </>
+          )}
+        </button>
       </div>
 
       {completed && myId && !match.mvpVotes?.[myId] && mine && (
@@ -732,7 +694,6 @@ function MatchCard({
 function TeamBlock({
   team,
   score,
-  canEdit,
   canIncrement,
   onChange,
   rightAlign,
@@ -740,7 +701,6 @@ function TeamBlock({
 }: {
   team: (Player | undefined)[];
   score: number;
-  canEdit: boolean;
   canIncrement: boolean;
   onChange: (n: number) => void;
   rightAlign?: boolean;
@@ -788,53 +748,39 @@ function TeamBlock({
         ))}
       </div>
       <div className={cn("flex items-center gap-2 mt-1", rightAlign && "justify-end")}>
-        {canEdit ? (
-          <>
-            <button
-              onClick={() => onChange(Math.max(0, score - 1))}
-              disabled={score <= 0}
-              className={cn(
-                "w-7 h-7 rounded-full font-bold transition-opacity",
-                score <= 0 ? "bg-black/5 text-muted opacity-50" : "bg-black/5"
-              )}
-              aria-label="Decrement"
-            >
-              −
-            </button>
-            <span
-              className={cn(
-                "font-display text-3xl tabular-nums w-10 text-center",
-                isWin && "text-turf-600",
-                isLoss && "text-muted"
-              )}
-            >
-              {score}
-            </span>
-            <button
-              onClick={() => onChange(score + 1)}
-              disabled={!canIncrement}
-              className={cn(
-                "w-7 h-7 rounded-full font-bold transition-opacity",
-                canIncrement
-                  ? "bg-pink-200 text-pink-900"
-                  : "bg-black/5 text-muted opacity-50"
-              )}
-              aria-label="Increment"
-            >
-              +
-            </button>
-          </>
-        ) : (
-          <span
-            className={cn(
-              "font-display text-3xl tabular-nums",
-              isWin && "text-turf-600",
-              isLoss && "text-muted"
-            )}
-          >
-            {score}
-          </span>
-        )}
+        <button
+          onClick={() => onChange(Math.max(0, score - 1))}
+          disabled={score <= 0}
+          className={cn(
+            "w-7 h-7 rounded-full font-bold transition-opacity",
+            score <= 0 ? "bg-black/5 text-muted opacity-50" : "bg-black/5"
+          )}
+          aria-label="Decrement"
+        >
+          −
+        </button>
+        <span
+          className={cn(
+            "font-display text-3xl tabular-nums w-10 text-center",
+            isWin && "text-turf-600",
+            isLoss && "text-muted"
+          )}
+        >
+          {score}
+        </span>
+        <button
+          onClick={() => onChange(score + 1)}
+          disabled={!canIncrement}
+          className={cn(
+            "w-7 h-7 rounded-full font-bold transition-opacity",
+            canIncrement
+              ? "bg-pink-200 text-pink-900"
+              : "bg-black/5 text-muted opacity-50"
+          )}
+          aria-label="Increment"
+        >
+          +
+        </button>
       </div>
     </div>
   );
