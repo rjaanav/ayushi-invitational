@@ -201,13 +201,30 @@ export async function completeRound(roundId: string) {
 
 /**
  * Submit a match score. Updates match doc and player stats atomically.
+ *
+ * Scoring rule: a match ends when the CUMULATIVE score across both teams
+ * equals `pointsPerMatch` (default 24). Callers should pass `maxTotal` so we
+ * can reject invalid scores server-side as a safety net on top of the client
+ * UI cap.
  */
 export async function submitMatchScore(params: {
   matchId: string;
   scoreA: number;
   scoreB: number;
+  maxTotal?: number;
 }) {
-  const { matchId, scoreA, scoreB } = params;
+  const { matchId, scoreA, scoreB, maxTotal } = params;
+  if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) {
+    throw new Error("Scores must be numbers.");
+  }
+  if (scoreA < 0 || scoreB < 0) {
+    throw new Error("Scores can't be negative.");
+  }
+  if (maxTotal !== undefined && scoreA + scoreB > maxTotal) {
+    throw new Error(
+      `Combined score can't exceed ${maxTotal} (you entered ${scoreA + scoreB}).`
+    );
+  }
   const db = getDb();
   await runTransaction(db, async (tx) => {
     const matchRef = doc(db, "matches", matchId);
@@ -284,6 +301,149 @@ export async function voteMVP(params: {
 export async function promoteAdmin(userId: string) {
   const db = getDb();
   await updateDoc(doc(db, "players", userId), { isAdmin: true });
+}
+
+// ---------------------------------------------------------------------------
+// Test seeding
+// ---------------------------------------------------------------------------
+
+/** Deterministic gradient avatar so seeded players are visually distinct. */
+function makeSeedAvatar(name: string, hue: number): string {
+  const parts = name.trim().split(/\s+/);
+  const letters =
+    ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? parts[0]?.[1] ?? "")).toUpperCase() ||
+    "??";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue}, 78%, 82%)"/><stop offset="1" stop-color="hsl(${(hue + 40) % 360}, 70%, 62%)"/></linearGradient></defs><rect width="240" height="240" fill="url(#g)"/><text x="50%" y="54%" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="104" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#0a1620">${letters}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+const SEED_PLAYERS: Array<{ name: string; funFact: string; isAyushi?: boolean }> = [
+  { name: "Ayushi Sharma", funFact: "Birthday girl. Serve her a forehand to the chest and you get uninvited.", isAyushi: true },
+  { name: "Priya Kapoor", funFact: "Can't lose without blaming the wind." },
+  { name: "Rohan Mehta", funFact: "Turns every rally into a three-act play." },
+  { name: "Arjun Singh", funFact: "Foot-fault connoisseur." },
+  { name: "Neha Iyer", funFact: "Secretly plays tennis with her dog every morning." },
+  { name: "Kabir Joshi", funFact: "Will ask to review a point on a phone camera." },
+  { name: "Ananya Rao", funFact: "Unbeatable when the playlist is on." },
+  { name: "Vikram Nair", funFact: "Grip tape maximalist." },
+  { name: "Divya Banerjee", funFact: "Returns everything short of a yorker." },
+  { name: "Rahul Gupta", funFact: "Celebrates winners with the silent nod." },
+  { name: "Tara Verma", funFact: "Overhead smash is a personality trait." },
+  { name: "Aditya Menon", funFact: "Court DJ and occasionally the striker." },
+  { name: "Shreya Desai", funFact: "Lefty with a sneaky drop shot." },
+  { name: "Karan Bhatt", funFact: "Will argue about a line call for 12 minutes." },
+];
+
+/**
+ * Create 14 deterministic test players for end-to-end testing. Safe to re-run —
+ * it uses fixed `seed-*` ids and overwrites stats each time so the field is
+ * reset to a clean slate. Real players are never touched.
+ */
+export async function seedTestPlayers() {
+  const db = getDb();
+  const batch = writeBatch(db);
+  const createdIds: string[] = [];
+  SEED_PLAYERS.forEach((p, i) => {
+    const slug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const id = `seed-${String(i + 1).padStart(2, "0")}-${slug}`;
+    createdIds.push(id);
+    const hue = Math.round((i * (360 / SEED_PLAYERS.length)) % 360);
+    const ref = doc(db, "players", id);
+    batch.set(
+      ref,
+      {
+        phone: `+1555${String(1000 + i).padStart(7, "0")}`,
+        name: p.name,
+        photoURL: makeSeedAvatar(p.name, hue),
+        funFact: p.funFact,
+        isAyushi: Boolean(p.isAyushi),
+        isAdmin: false,
+        isSeed: true,
+        points: 0,
+        wins: 0,
+        losses: 0,
+        matchesPlayed: 0,
+        pointsFor: 0,
+        pointsAgainst: 0,
+        joinedAt: serverTimestamp(),
+      },
+      { merge: false }
+    );
+  });
+  await batch.commit();
+  return { count: SEED_PLAYERS.length, ids: createdIds };
+}
+
+/**
+ * Delete every `seed-*` player doc and any matches/rounds that referenced them.
+ * Also clears the tournament's `ayushiId` if it pointed at a seed player.
+ */
+export async function removeTestPlayers() {
+  const db = getDb();
+  const snap = await getDocs(collection(db, "players"));
+  const seeds = snap.docs.filter((d) => d.id.startsWith("seed-"));
+  if (seeds.length === 0) return { removed: 0 };
+
+  const seedIds = new Set(seeds.map((d) => d.id));
+
+  // If the tournament's ayushiId is a seed player, clear it so the admin panel
+  // doesn't end up pointing at a ghost.
+  const tRef = doc(db, "tournament", TOURNAMENT_ID);
+  const tSnap = await getDoc(tRef);
+  const clearAyushi =
+    tSnap.exists() &&
+    typeof tSnap.data().ayushiId === "string" &&
+    seedIds.has(tSnap.data().ayushiId as string);
+
+  // Firestore batches are capped at 500 ops. We may have matches + rounds +
+  // players in the hundreds; chunk to be safe.
+  const [matchesSnap, roundsSnap] = await Promise.all([
+    getDocs(collection(db, "matches")),
+    getDocs(collection(db, "rounds")),
+  ]);
+  const staleMatches = matchesSnap.docs.filter((d) => {
+    const m = d.data() as Omit<Match, "id">;
+    return (
+      m.teamA?.some((id) => seedIds.has(id)) ||
+      m.teamB?.some((id) => seedIds.has(id))
+    );
+  });
+  const staleMatchIds = new Set(staleMatches.map((d) => d.id));
+  const staleRounds = roundsSnap.docs.filter((d) => {
+    const r = d.data() as Omit<Round, "id">;
+    return (
+      r.resting?.some((id) => seedIds.has(id)) ||
+      r.matchIds?.some((id) => staleMatchIds.has(id))
+    );
+  });
+
+  // Firestore batches cap at 500 ops. Chunk into safe-sized batches.
+  const batches: ReturnType<typeof writeBatch>[] = [];
+  let current = writeBatch(db);
+  let count = 0;
+  const addOp = (fn: (b: ReturnType<typeof writeBatch>) => void) => {
+    fn(current);
+    count++;
+    if (count >= 450) {
+      batches.push(current);
+      current = writeBatch(db);
+      count = 0;
+    }
+  };
+
+  seeds.forEach((d) => addOp((b) => b.delete(d.ref)));
+  staleMatches.forEach((d) => addOp((b) => b.delete(d.ref)));
+  staleRounds.forEach((d) => addOp((b) => b.delete(d.ref)));
+  if (clearAyushi) addOp((b) => b.set(tRef, { ayushiId: null }, { merge: true }));
+
+  batches.push(current);
+  for (const b of batches) await b.commit();
+
+  return {
+    removed: seeds.length,
+    matchesRemoved: staleMatches.length,
+    roundsRemoved: staleRounds.length,
+  };
 }
 
 export async function setAyushi(userId: string) {

@@ -86,7 +86,9 @@ export default function TournamentPage() {
                 playerMap={playerMap}
                 myId={player?.id}
                 pointsPerMatch={tournament.pointsPerMatch}
-                canScore={Boolean(player?.isAdmin) || activeRoundNumber === currentRoundNumber}
+                // Only admins can submit scores; everyone else gets a live,
+                // read-only view of the same matches.
+                canScore={Boolean(player?.isAdmin)}
               />
             )}
           </>
@@ -244,8 +246,13 @@ function MatchCard({
   const mine = imOnA || imOnB;
   const completed = match.status === "completed";
 
+  // Cumulative-cap bookkeeping. A match ends when a + b == pointsPerMatch,
+  // so "remaining" drives whether the +/- buttons should still fire.
+  const total = a + b;
+  const remaining = Math.max(0, pointsPerMatch - total);
+  const atCap = remaining <= 0;
+
   async function save() {
-    const total = a + b;
     if (total === 0) {
       toast.error("Enter a score first.");
       return;
@@ -254,9 +261,24 @@ function MatchCard({
       toast.error("Scores can't be negative.");
       return;
     }
+    if (total > pointsPerMatch) {
+      toast.error(`Combined score can't exceed ${pointsPerMatch}.`);
+      return;
+    }
+    if (total < pointsPerMatch) {
+      const ok = confirm(
+        `Match ends at ${pointsPerMatch} total points. You entered ${total}. Submit anyway?`
+      );
+      if (!ok) return;
+    }
     setBusy(true);
     try {
-      await submitMatchScore({ matchId: match.id, scoreA: a, scoreB: b });
+      await submitMatchScore({
+        matchId: match.id,
+        scoreA: a,
+        scoreB: b,
+        maxTotal: pointsPerMatch,
+      });
       toast.success("Score locked in 💥");
       if (imOnA ? a > b : b > a) {
         confetti({
@@ -268,7 +290,7 @@ function MatchCard({
       }
     } catch (err) {
       console.error(err);
-      toast.error("Couldn't save.");
+      toast.error(err instanceof Error ? err.message : "Couldn't save.");
     } finally {
       setBusy(false);
     }
@@ -304,12 +326,12 @@ function MatchCard({
         <TeamBlock
           team={teamA}
           score={a}
-          canEdit={canScore && !completed}
+          canEdit={canScore}
+          canIncrement={!atCap}
           onChange={(n) => {
             markEdited();
-            setA(n);
+            setA(Math.max(0, Math.min(n, pointsPerMatch - b)));
           }}
-          max={pointsPerMatch}
         />
         <div className="flex flex-col items-center">
           <span className="font-display text-xl text-muted">vs</span>
@@ -317,20 +339,44 @@ function MatchCard({
         <TeamBlock
           team={teamB}
           score={b}
-          canEdit={canScore && !completed}
+          canEdit={canScore}
+          canIncrement={!atCap}
           onChange={(n) => {
             markEdited();
-            setB(n);
+            setB(Math.max(0, Math.min(n, pointsPerMatch - a)));
           }}
-          max={pointsPerMatch}
           rightAlign
         />
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-muted">
-          First to <strong className="text-ink">{pointsPerMatch}</strong>
-        </p>
+        <div className="flex flex-col">
+          <p className="text-[11px] text-muted">
+            Match to <strong className="text-ink">{pointsPerMatch}</strong> total
+          </p>
+          {canScore && !completed && (
+            <p
+              className={cn(
+                "text-[11px] font-semibold tabular-nums",
+                atCap ? "text-turf-600" : "text-muted"
+              )}
+            >
+              {atCap
+                ? "Cap reached — ready to submit"
+                : `${remaining} pt${remaining === 1 ? "" : "s"} remaining`}
+            </p>
+          )}
+          {!canScore && !completed && (
+            <p className="text-[11px] text-muted">
+              Host scores it. Updates live.
+            </p>
+          )}
+          {canScore && completed && total !== pointsPerMatch && (
+            <p className="text-[11px] text-amber-600 font-semibold">
+              Saved at {total}/{pointsPerMatch} — edit if that&rsquo;s wrong.
+            </p>
+          )}
+        </div>
         {canScore && (
           <button
             onClick={save}
@@ -340,7 +386,7 @@ function MatchCard({
             {busy ? (
               <Loader2 className="animate-spin" size={16} />
             ) : completed ? (
-              "Edit score"
+              "Update score"
             ) : (
               <>
                 <Trophy size={14} />
@@ -367,15 +413,15 @@ function TeamBlock({
   team,
   score,
   canEdit,
+  canIncrement,
   onChange,
-  max,
   rightAlign,
 }: {
   team: (Player | undefined)[];
   score: number;
   canEdit: boolean;
+  canIncrement: boolean;
   onChange: (n: number) => void;
-  max: number;
   rightAlign?: boolean;
 }) {
   return (
@@ -397,7 +443,12 @@ function TeamBlock({
           <>
             <button
               onClick={() => onChange(Math.max(0, score - 1))}
-              className="w-7 h-7 rounded-full bg-black/5 font-bold"
+              disabled={score <= 0}
+              className={cn(
+                "w-7 h-7 rounded-full font-bold transition-opacity",
+                score <= 0 ? "bg-black/5 text-muted opacity-50" : "bg-black/5"
+              )}
+              aria-label="Decrement"
             >
               −
             </button>
@@ -405,8 +456,15 @@ function TeamBlock({
               {score}
             </span>
             <button
-              onClick={() => onChange(Math.min(max * 2, score + 1))}
-              className="w-7 h-7 rounded-full bg-pink-200 text-pink-900 font-bold"
+              onClick={() => onChange(score + 1)}
+              disabled={!canIncrement}
+              className={cn(
+                "w-7 h-7 rounded-full font-bold transition-opacity",
+                canIncrement
+                  ? "bg-pink-200 text-pink-900"
+                  : "bg-black/5 text-muted opacity-50"
+              )}
+              aria-label="Increment"
             >
               +
             </button>

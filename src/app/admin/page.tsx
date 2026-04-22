@@ -19,6 +19,8 @@ import {
   RotateCcw,
   Shield,
   Sparkles,
+  TestTube,
+  Trash2,
   Trophy,
   UserCog,
 } from "lucide-react";
@@ -36,6 +38,8 @@ import {
   generateNextRound,
   initTournament,
   promoteAdmin,
+  removeTestPlayers,
+  seedTestPlayers,
   setAyushi,
   startRound,
   updateTournament,
@@ -209,7 +213,7 @@ export default function AdminPage() {
                   }
                 />
                 <SettingInput
-                  label="Race to"
+                  label="Pts/match"
                   value={tournament.pointsPerMatch}
                   onSave={(v) => updateTournament({ pointsPerMatch: Math.max(8, v) })}
                 />
@@ -334,6 +338,64 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Test tools */}
+        <section className="card p-4 bg-sand/40">
+          <p className="font-semibold text-sm text-court-800 flex items-center gap-2">
+            <TestTube size={14} /> Test tools
+          </p>
+          <p className="text-xs text-court-700/80 mt-1">
+            Drop a full 14-player squad into the database to run the tournament
+            end-to-end without real phone logins. Re-run to reset their stats.
+          </p>
+          <div className="flex flex-col gap-2 mt-3">
+            <button
+              disabled={busy === "seed"}
+              onClick={() =>
+                wrap("seed", async () => {
+                  const { count } = await seedTestPlayers();
+                  toast.success(`Seeded ${count} test players 🧪`);
+                })
+              }
+              className="btn btn-primary"
+            >
+              {busy === "seed" ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <TestTube size={14} />
+              )}
+              Seed 14 test players
+            </button>
+            <button
+              disabled={busy === "unseed"}
+              onClick={() =>
+                wrap("unseed", async () => {
+                  if (
+                    !confirm(
+                      "Remove all seeded test players and any rounds/matches they played in?"
+                    )
+                  )
+                    return;
+                  const res = await removeTestPlayers();
+                  toast.success(
+                    `Removed ${res.removed} test players` +
+                      (res.matchesRemoved
+                        ? ` + ${res.matchesRemoved} match${res.matchesRemoved === 1 ? "" : "es"}`
+                        : "")
+                  );
+                })
+              }
+              className="btn btn-ghost"
+            >
+              {busy === "unseed" ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <Trash2 size={14} />
+              )}
+              Remove test players
+            </button>
           </div>
         </section>
 
