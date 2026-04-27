@@ -96,7 +96,10 @@ async function buildStandings(): Promise<PlayerStanding[]> {
   }
 
   return players
-    .filter((p) => p.name && p.photoURL) // only onboarded
+    // Eligible to be scheduled = onboarded AND opted in as a participant.
+    // Spectators stay registered (they can post photos, leave notes, etc.)
+    // but never get pulled into a round.
+    .filter((p) => p.name && p.photoURL && !p.isSpectator)
     .map((p) => ({
       id: p.id,
       points: p.points ?? 0,
@@ -299,6 +302,16 @@ export async function voteMVP(params: {
 export async function promoteAdmin(userId: string) {
   const db = getDb();
   await updateDoc(doc(db, "players", userId), { isAdmin: true });
+}
+
+/**
+ * Flip a player between participant ("on the roster") and spectator
+ * ("just here to cheer"). Spectators are excluded from round generation but
+ * keep all their other access (memories, birthday messages, leaderboard view).
+ */
+export async function setSpectator(userId: string, value: boolean) {
+  const db = getDb();
+  await updateDoc(doc(db, "players", userId), { isSpectator: value });
 }
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { ArrowLeft, LogOut, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, LogOut, Sparkles } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/Avatar";
@@ -53,6 +53,11 @@ export default function PlayerPage({
               <Avatar name={p.name} photoURL={p.photoURL} size={104} ring />
               <div>
                 <h1 className="font-display text-2xl">{p.name}</h1>
+                {p.isSpectator && (
+                  <span className="chip mt-1 inline-flex items-center gap-1 bg-pink-100 text-pink-800 border border-pink-200">
+                    <Eye size={12} /> Cheering, not playing
+                  </span>
+                )}
               </div>
               {p.funFact && (
                 <p className="text-sm text-ink-soft italic max-w-xs">
@@ -61,13 +66,16 @@ export default function PlayerPage({
               )}
             </section>
 
-            <section className="grid grid-cols-4 gap-2">
-              <Stat label="Pts" value={p.points} highlight />
-              <Stat label="Played" value={p.matchesPlayed} />
-              <Stat label="W" value={p.wins} />
-              <Stat label="L" value={p.losses} />
-            </section>
+            {!p.isSpectator && (
+              <section className="grid grid-cols-4 gap-2">
+                <Stat label="Pts" value={p.points} highlight />
+                <Stat label="Played" value={p.matchesPlayed} />
+                <Stat label="W" value={p.wins} />
+                <Stat label="L" value={p.losses} />
+              </section>
+            )}
 
+            {!p.isSpectator && (
             <section className="card p-4">
               <p className="text-xs uppercase tracking-wider font-bold text-court-800 mb-2">
                 Match history
@@ -110,6 +118,7 @@ export default function PlayerPage({
                 })}
               </div>
             </section>
+            )}
 
             {me?.id === id && (
               <Link href="/onboarding" className="btn btn-ghost">

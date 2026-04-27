@@ -9,6 +9,10 @@ export interface Player {
   photoURL?: string; // selfie with Ayushi
   joinedAt: TimestampLike;
   isAdmin?: boolean;
+  // When true, this player is registered for the night (can post photos +
+  // birthday notes, see the leaderboard, hype people up) but is excluded
+  // from tournament scheduling and never appears on a court.
+  isSpectator?: boolean;
   funFact?: string;
   // Live stats (denormalized for fast reads)
   points: number;

@@ -15,8 +15,10 @@ export default function LeaderboardPage() {
   const { item: tournament } = useTournament();
   const { player: me } = useAuth();
 
+  // Only roster players show up on the leaderboard; spectators don't
+  // accumulate points, so listing them with 0 would be misleading.
   const ranked = players
-    .filter((p) => p.name)
+    .filter((p) => p.name && !p.isSpectator)
     .slice()
     .sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;

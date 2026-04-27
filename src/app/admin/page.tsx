@@ -12,6 +12,7 @@ import {
 import confetti from "canvas-confetti";
 import {
   ChevronRight,
+  Eye,
   Loader2,
   Play,
   PlusCircle,
@@ -40,6 +41,7 @@ import {
   promoteAdmin,
   removeTestPlayers,
   seedTestPlayers,
+  setSpectator,
   startRound,
   updateTournament,
 } from "@/lib/firebase/tournamentActions";
@@ -289,6 +291,10 @@ export default function AdminPage() {
           <p className="font-semibold text-sm flex items-center gap-2">
             <UserCog size={16} /> Players ({players.length})
           </p>
+          <p className="text-[11px] text-muted -mt-2">
+            {players.filter((p) => !p.isSpectator).length} on the roster ·{" "}
+            {players.filter((p) => p.isSpectator).length} cheering
+          </p>
           <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
             {players.map((p) => (
               <div key={p.id} className="flex items-center gap-2">
@@ -301,12 +307,17 @@ export default function AdminPage() {
                         <Shield size={10} /> admin
                       </span>
                     )}
+                    {p.isSpectator && (
+                      <span className="chip ml-2 !py-0 !px-1.5 !text-[10px] bg-pink-100 text-pink-800 border border-pink-200">
+                        <Eye size={10} /> spectator
+                      </span>
+                    )}
                   </p>
                   <p className="text-[11px] text-muted truncate">
                     {p.phone || p.id}
                   </p>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
                   {!p.isAdmin && (
                     <button
                       onClick={() =>
@@ -320,6 +331,27 @@ export default function AdminPage() {
                       Make admin
                     </button>
                   )}
+                  <button
+                    onClick={() =>
+                      wrap(`spec-${p.id}`, async () => {
+                        const next = !p.isSpectator;
+                        await setSpectator(p.id, next);
+                        toast.success(
+                          next
+                            ? `${p.name || "Player"} is cheering, not playing`
+                            : `${p.name || "Player"} is back on the roster`
+                        );
+                      })
+                    }
+                    className="text-xs px-2 py-1 rounded-full bg-pink-100 text-pink-800 border border-pink-200"
+                    title={
+                      p.isSpectator
+                        ? "Move to roster (will be scheduled in future rounds)"
+                        : "Mark as spectator (won't be scheduled)"
+                    }
+                  >
+                    {p.isSpectator ? "Add to roster" : "Spectator"}
+                  </button>
                 </div>
               </div>
             ))}

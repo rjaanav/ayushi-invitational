@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, Loader2, Sparkles } from "lucide-react";
+import { Camera, Eye, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -17,6 +17,7 @@ export default function OnboardingPage() {
   const [funFact, setFunFact] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [isSpectator, setIsSpectator] = useState(false);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -28,6 +29,7 @@ export default function OnboardingPage() {
     if (player?.name) setName(player.name);
     if (player?.photoURL) setPreview(player.photoURL);
     if (player?.funFact) setFunFact(player.funFact);
+    if (player?.isSpectator !== undefined) setIsSpectator(player.isSpectator);
   }, [player]);
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -67,9 +69,14 @@ export default function OnboardingPage() {
         name: name.trim(),
         photoURL,
         funFact: funFact.trim() || "",
+        isSpectator,
         updatedAt: serverTimestamp(),
       });
-      toast.success("You're on the list 🎾");
+      toast.success(
+        isSpectator
+          ? "You're in — cheering, not playing 📣"
+          : "You're on the list 🎾"
+      );
       router.replace("/");
     } catch (err) {
       console.error(err);
@@ -166,9 +173,39 @@ export default function OnboardingPage() {
         </div>
 
         <button
+          type="button"
+          onClick={() => setIsSpectator((v) => !v)}
+          className={`card p-4 flex items-start gap-3 text-left transition-colors ${
+            isSpectator
+              ? "ring-2 ring-pink-300 bg-pink-100/50"
+              : "hover:bg-pink-100/30"
+          }`}
+        >
+          <span
+            className={`mt-0.5 h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+              isSpectator
+                ? "bg-pink-500 border-pink-500 text-white"
+                : "border-black/20"
+            }`}
+            aria-hidden
+          >
+            {isSpectator && <Eye size={12} />}
+          </span>
+          <span className="flex-1">
+            <span className="block font-semibold text-sm">
+              I&rsquo;m just here to cheer 📣
+            </span>
+            <span className="block text-[11px] text-muted mt-0.5">
+              You&rsquo;ll still see everything, post photos and leave notes
+              for Ayushi — but you won&rsquo;t be put on a court.
+            </span>
+          </span>
+        </button>
+
+        <button
           onClick={onSave}
           disabled={saving}
-          className="btn btn-pink mt-4"
+          className="btn btn-pink mt-2"
         >
           {saving ? (
             <Loader2 className="animate-spin" size={18} />
